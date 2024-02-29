@@ -80,7 +80,8 @@ calendar[, c("type", "id", "had_activity_type") := NULL]
 # Remove API objects --------------------------------------------------------###
 rm(api_params, list_tmp)
 
-activity_id_today = "MTG-PL-2024-02-28"
+# if no data is yet available today, but want to test the script, uncomment line below
+# activity_id_today = "MTG-PL-2024-02-28"
 
 ###--------------------------------------------------------------------------###
 ## GET/meetings/{event-id}/decisions -------------------------------------------
