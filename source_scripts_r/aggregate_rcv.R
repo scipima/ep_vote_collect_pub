@@ -17,7 +17,8 @@ library(data.table)
 
 ###--------------------------------------------------------------------------###
 ## Data ------------------------------------------------------------------------
-meps_rcv_today <- data.table::fread(file = here::here("data_out", "meps_rcv_today.csv"))
+meps_rcv_today <- data.table::fread(file = here::here(
+  "data_out", paste0(today, "_meps_rcv_today.csv")))
 
 ###--------------------------------------------------------------------------###
 ## Aggregate RCV results by Political Groups -----------------------------------
@@ -34,8 +35,8 @@ fullresult_bygroup_byrcv <- meps_rcv_today[, list(Sum = length(unique(pers_id)))
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_today,
-                   file = here::here("data_out", "meps_rcv_today.csv"))
+                   file = here::here("data_out", paste0(today, "_meps_rcv_today.csv")))
 data.table::fwrite(x = result_bygroup_byrcv,
-                   file = here::here("data_out", "result_bygroup_byrcv.csv"))
+                   file = here::here("data_out", paste0(today, "_result_bygroup_byrcv.csv")))
 data.table::fwrite(x = fullresult_bygroup_byrcv,
-                   file = here::here("data_out", "fullresult_bygroup_byrcv.csv"))
+                   file = here::here("data_out", paste0(today, "_fullresult_bygroup_byrcv.csv")))

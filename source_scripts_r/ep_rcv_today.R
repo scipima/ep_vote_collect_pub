@@ -81,7 +81,9 @@ calendar[, c("type", "id", "had_activity_type") := NULL]
 rm(api_params, list_tmp)
 
 # if no data is yet available today, but want to test the script, uncomment line below
-# activity_id_today = "MTG-PL-2024-02-28"
+# activity_id_today = "MTG-PL-2024-02-27"
+today <- gsub(pattern = "MTG-PL-|-", replacement = "", x = activity_id_today)
+
 
 ###--------------------------------------------------------------------------###
 ## GET/meetings/{event-id}/decisions -------------------------------------------
@@ -151,11 +153,19 @@ rcv_vote <- lapply(
       dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
       tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
   data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "result") |>
-  dplyr::rename(pers_id = had_voter_abstention)
+  dplyr::rename(pers_id = had_voter_abstention) |> 
+  dplyr::distinct() # DEFENSIVE: there may be duplicate rows
+
+# check for duplicates again
+df_check <- rcv_vote[, .N, by = list(pers_id, activity_id)]
+
+if (mean(df_check$N) > 1) {
+  warning("WATCH OUT: You may have duplicate records")}
 
 # Intentions ------------------------------------------------------------------#
 vote_intention_cols <- c("had_voter_intended_abstention", "had_voter_intended_against",
                          "had_voter_intended_favor")
+vote_intention_cols <- vote_intention_cols[vote_intention_cols %in% names(votes_raw)]
 rcv_vote_intention <- lapply(
   X = setNames(object = vote_intention_cols, nm = vote_intention_cols),
   FUN = function(j_col) {
@@ -165,8 +175,16 @@ rcv_vote_intention <- lapply(
       dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
       tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
   data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "vote_intention") |>
-  dplyr::rename(pers_id = had_voter_intended_abstention)
-# Merge vote with intentions
+  dplyr::rename(pers_id = 3) |> 
+  dplyr::distinct() # DEFENSIVE: there may be duplicate rows
+
+# check for duplicates again
+df_check <- rcv_vote[, .N, by = list(pers_id, activity_id)]
+
+if (mean(df_check$N) > 1) {
+  warning("WATCH OUT: You may have duplicate records")}
+
+# Merge vote with intentions  -------------------------------------------------#
 # !! WATCH OUT: This must be a FULL JOIN !!
 # This is because sometime MEPs don't have a vote, but do have an intention
 rcv_vote <- merge(rcv_vote, rcv_vote_intention,
@@ -248,21 +266,23 @@ votes_today[, `:=`(
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = votes_today,
-                   file = here::here("data_out", "votes_today.csv"))
+                   file = here::here("data_out", paste0(today, "_votes_today.csv") ) )
 
 
 #### `decided_on_a_realization_of` and `was_motivated_by` ----------------------
 # decided_on_a_realization_of
-decided_on_a_realization_of <- votes_raw |>
+if("decided_on_a_realization_of" %in% names(votes_raw) ) {
+  decided_on_a_realization_of <- votes_raw |>
   dplyr::select(activity_id, decided_on_a_realization_of) |>
   dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-  tidyr::unnest(decided_on_a_realization_of)
+  tidyr::unnest(decided_on_a_realization_of) }
 
 # was_motivated_by
+if("was_motivated_by" %in% names(votes_raw) ) {
 was_motivated_by <- votes_raw |>
   dplyr::select(activity_id, was_motivated_by) |>
   dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-  tidyr::unnest(was_motivated_by)
+  tidyr::unnest(was_motivated_by) }
 
 
 ###--------------------------------------------------------------------------###
@@ -288,7 +308,7 @@ rcv_today[, vote_intention := as.integer(vote_intention)]
 # sapply(rcv_today, function(x) sum(is.na(x)))
 
 # Remove API objects --------------------------------------------------------###
-rm(api_raw, api_list, list_tmp)
+rm(api_raw, api_list, list_tmp, df_check)
 
 
 ###--------------------------------------------------------------------------###
@@ -307,7 +327,7 @@ meps_current <- api_list$data |>
     country = api_country_of_representation)
 
 # Remove API objects --------------------------------------------------------###
-rm(api_raw, api_list)
+rm(api_raw, api_params, api_url, api_list)
 
 
 ###--------------------------------------------------------------------------###
@@ -317,10 +337,16 @@ meps_rcv_grid <- tidyr::expand_grid(
   meps_current,
   notation_votingId = unique(rcv_today$notation_votingId) )
 
+# merge grid with RCV data
 meps_rcv_today <- merge(x = meps_rcv_grid,
                         y = rcv_today,
                         by = c("pers_id", "notation_votingId"), all = TRUE) |>
   data.table::as.data.table()
+
+# check
+if ( nrow(meps_rcv_today) > nrow(meps_rcv_grid) ) {
+  warning("WATCH OUT: You may have duplicate records")}
+
 
 # Final cleaning --------------------------------------------------------------#
 # delete no variance cols
@@ -365,5 +391,6 @@ data.table::setcolorder(x = meps_rcv_today,
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_today,
-                   file = here::here("data_out", "meps_rcv_today.csv"))
+                   file = here::here("data_out", 
+                                     paste0(today, "_meps_rcv_today.csv") ) )
 
