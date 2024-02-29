@@ -2,6 +2,8 @@
 # Daily EP Votes ---------------------------------------------------------------
 ###--------------------------------------------------------------------------###
 
+rm(list = ls())
+
 ###--------------------------------------------------------------------------###
 #' DESCRIPTION.
 #' We follow 4 steps to get the daily RCVs from the EP Open Data Portal (https://data.europarl.europa.eu/en/developer-corner/opendata-api).
@@ -119,10 +121,12 @@ votes_raw <- api_list$data
 #### Flat cols -----------------------------------------------------------------
 cols_tokeep <- names(votes_raw)[
   sapply(votes_raw, class) %in% c("character", "integer")]
-votes_today <- votes_raw[, cols_tokeep]
+votes_today <- votes_raw[, cols_tokeep] |> 
+  dplyr::distinct() # DEFENSIVE: there may be duplicate rows
 # `type` is the only col we have to unnest wider
 votes_today <- votes_raw |>
   dplyr::select(activity_id, type) |>
+  dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
   tidyr::unnest_wider(type, names_sep = "_") |>
   dplyr::mutate(type = ifelse(
     test = type_1 %in% "Decision",
@@ -143,6 +147,7 @@ rcv_vote <- lapply(
     votes_raw |>
       dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |> 
       dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
+      dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
       tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
   data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "result") |>
   dplyr::rename(pers_id = had_voter_abstention)
@@ -156,6 +161,7 @@ rcv_vote_intention <- lapply(
     votes_raw |>
       dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |> 
       dplyr::select(activity_id, tidyselect::any_of(j_col) ) |>
+      dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
       tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
   data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "vote_intention") |>
   dplyr::rename(pers_id = had_voter_intended_abstention)
@@ -177,6 +183,7 @@ list_tmp <- lapply(
   FUN = function(j_col) {
     votes_raw |>
       dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
+      dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
       tidyr::unnest(tidyselect::any_of(j_col),
                     keep_empty = TRUE, names_sep = "_") |>
       dplyr::select(
@@ -205,6 +212,7 @@ list_tmp <- lapply(
   FUN = function(j_col) {
     votes_raw |>
       dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
+      dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
       tidyr::unnest(tidyselect::any_of(j_col),
                     keep_empty = TRUE) } )
 
@@ -246,11 +254,13 @@ data.table::fwrite(x = votes_today,
 # decided_on_a_realization_of
 decided_on_a_realization_of <- votes_raw |>
   dplyr::select(activity_id, decided_on_a_realization_of) |>
+  dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
   tidyr::unnest(decided_on_a_realization_of)
 
 # was_motivated_by
 was_motivated_by <- votes_raw |>
   dplyr::select(activity_id, was_motivated_by) |>
+  dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
   tidyr::unnest(was_motivated_by)
 
 
@@ -339,7 +349,7 @@ cols_tofill <- c("activity_date", "activity_start_date", "activity_order",
 meps_rcv_today <- meps_rcv_today |> 
   dplyr::group_by(notation_votingId) |> 
   tidyr::fill(tidyselect::any_of(cols_tofill),
-       .direction = "downup") |> 
+              .direction = "downup") |> 
   dplyr::ungroup() |> 
   data.table::as.data.table()
 # sapply(meps_rcv_today, function(x) sum(is.na(x))) # check
