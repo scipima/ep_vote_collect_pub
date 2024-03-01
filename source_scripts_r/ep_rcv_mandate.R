@@ -31,7 +31,7 @@ if ( !dir.exists(here::here("data_out") ) ) {
 # EXAMPLE: https://data.europarl.europa.eu/api/v1/plenary-documents?year=2016&format=application%2Fld%2Bjson&offset=0
 # create parameters to loop over
 api_base <- "https://data.europarl.europa.eu/api/v1"
-years <- data.table::year(Sys.Date())
+years <- 2023 : data.table::year(Sys.Date()) # currently, API only has data since 2023
 # If more years are needed, change the line above to:
 # years <- 2016 : data.table::year(Sys.Date())
 # grid to loop over
@@ -39,9 +39,12 @@ api_params <- paste0("/meetings?year=", years,
                      "&format=application%2Fld%2Bjson&offset=0")
 
 # Function ------------------------------------------------------------------###
+# list_tmp <- vector(mode = "list", length = length(api_params))
 get_docs_year <- function(links = api_params) {
   future.apply::future_lapply(
     X = links, FUN = function(param) {
+      # for (param in seq_along(api_params)) {  # UNCOMMENT TO TEST LOOP
+      # api_url <- paste0(api_base, api_params[param])  # UNCOMMENT TO TEST LOOP
       api_url <- paste0(api_base, param)
       # print(api_url)
       api_raw <- httr::GET(api_url)
@@ -50,6 +53,7 @@ get_docs_year <- function(links = api_params) {
         flatten = TRUE)
       # extract info
       docs_year <- api_list$data
+      # list[[param]] <- docs_year # UNCOMMENT TO TEST LOOP
       return(docs_year) } ) }
 
 # parallelisation -----------------------------------------------------------###
@@ -61,8 +65,7 @@ future::plan(strategy = sequential) # revert to normal
 names(list_tmp) <- years
 calendar <- data.table::rbindlist(list_tmp,
                                   use.names=TRUE, fill=TRUE, idcol="year")
-# sapply(plenary_documents, function(x) sum(is.na(x))) # check NAs
-
+# sapply(plenary_documents, function(x) sum(is.na(x)))
 # clean data
 calendar[, `:=`(year = as.integer(year),
                 date = as.Date(gsub(pattern = "eli/dl/event/MTG-PL-",
