@@ -89,11 +89,14 @@ today <- gsub(pattern = "MTG-PL-|-", replacement = "", x = activity_id_today)
 # Returns all decisions in a single EP Meeting --------------------------------#
 # EXAMPLE: "https://data.europarl.europa.eu/api/v1/meetings/MTG-PL-2023-07-12/decisions?format=application%2Fld%2Bjson&json-layout=framed"
 
+vote_list_tmp <- NULL
+for(param in seq_along( calendar$activity_id ) ) {
+ 
 # grid to loop over
 api_params <- paste0("/meetings/", activity_id_today,
                      "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
 api_url <- paste0(api_base, api_params)
-# print(api_url) # Check
+print(api_url) # Check
 # Get data from URL
 api_raw <- httr::GET(api_url)
 
@@ -108,7 +111,8 @@ if (httr::http_error(api_raw)) {
 api_list <- jsonlite::fromJSON(
   rawToChar(api_raw$content))
 # extract info
-votes_raw <- api_list$data
+ vote_list_tmp[[param]] <- api_list$data
+}
 
 
 ###--------------------------------------------------------------------------###
