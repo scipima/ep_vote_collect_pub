@@ -89,29 +89,21 @@ today <- gsub(pattern = "MTG-PL-|-", replacement = "", x = activity_id_today)
 # Returns all decisions in a single EP Meeting --------------------------------#
 # EXAMPLE: "https://data.europarl.europa.eu/api/v1/meetings/MTG-PL-2023-07-12/decisions?format=application%2Fld%2Bjson&json-layout=framed"
 
-vote_list_tmp <- NULL
+vote_list_tmp <- vector(mode = "list", length = length(calendar$activity_id) )
 for(param in seq_along( calendar$activity_id ) ) {
- 
-# grid to loop over
-api_params <- paste0("/meetings/", activity_id_today,
-                     "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
-api_url <- paste0(api_base, api_params)
-print(api_url) # Check
-# Get data from URL
-api_raw <- httr::GET(api_url)
-
-###--------------------------------------------------------------------------###
-# Check for errors - !! DATA MAY NOT BE AVAILABLE YET !!
-if (httr::http_error(api_raw)) {
-  stop( "API request failed. Data is not available yet. Please try again later." )
-}
-###--------------------------------------------------------------------------###
-
-# Get data from .json
-api_list <- jsonlite::fromJSON(
-  rawToChar(api_raw$content))
-# extract info
- vote_list_tmp[[param]] <- api_list$data
+  # grid to loop over
+  print(calendar$activity_id[param]) # check
+  api_params <- paste0("/meetings/", calendar$activity_id[param],
+                       "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
+  api_url <- paste0(api_base, api_params)
+  # Get data from URL
+  api_raw <- httr::GET(api_url)
+  # Get data from .json
+  api_list <- jsonlite::fromJSON(
+    rawToChar(api_raw$content))
+  # extract info
+  vote_list_tmp[[param]] <- api_list$data
+  rm(api_raw)
 }
 
 
@@ -127,7 +119,7 @@ api_list <- jsonlite::fromJSON(
 #### Flat cols -----------------------------------------------------------------
 cols_tokeep <- names(votes_raw)[
   sapply(votes_raw, class) %in% c("character", "integer")]
-votes_today <- votes_raw[, cols_tokeep] |> 
+votes_today <- votes_raw[, cols_tokeep] |>
   dplyr::distinct() # DEFENSIVE: there may be duplicate rows
 # `type` is the only col we have to unnest wider
 votes_today <- votes_raw |>
@@ -151,12 +143,12 @@ rcv_vote <- lapply(
   X = setNames(object = vote_cols, nm = vote_cols),
   FUN = function(j_col) {
     votes_raw |>
-      dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |> 
+      dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |>
       dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
       dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
       tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
   data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "result") |>
-  dplyr::rename(pers_id = had_voter_abstention) |> 
+  dplyr::rename(pers_id = had_voter_abstention) |>
   dplyr::distinct() # DEFENSIVE: there may be duplicate rows
 
 # check for duplicates again
@@ -173,12 +165,12 @@ rcv_vote_intention <- lapply(
   X = setNames(object = vote_intention_cols, nm = vote_intention_cols),
   FUN = function(j_col) {
     votes_raw |>
-      dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |> 
+      dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |>
       dplyr::select(activity_id, tidyselect::any_of(j_col) ) |>
       dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
       tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
   data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "vote_intention") |>
-  dplyr::rename(pers_id = 3) |> 
+  dplyr::rename(pers_id = 3) |>
   dplyr::distinct() # DEFENSIVE: there may be duplicate rows
 
 # check for duplicates again
@@ -191,9 +183,9 @@ if (mean(df_check$N) > 1) {
 # !! WATCH OUT: This must be a FULL JOIN !!
 # This is because sometime MEPs don't have a vote, but do have an intention
 rcv_vote <- merge(rcv_vote, rcv_vote_intention,
-                  by = c("pers_id", "activity_id"), 
+                  by = c("pers_id", "activity_id"),
                   all = TRUE) |> # !! FULL JOIN HERE - IMPORTANT !!
-  dplyr::mutate(pers_id = gsub(pattern = "person/", replacement = "", x = pers_id)) |> 
+  dplyr::mutate(pers_id = gsub(pattern = "person/", replacement = "", x = pers_id)) |>
   data.table::as.data.table()
 
 
@@ -224,10 +216,10 @@ votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE)
 #### Tackle list-cols ----------------------------------------------------------
 cols_list <- names(votes_raw)[
   sapply(votes_raw, class) %in% c("list")]
-cols_list <- cols_list[ 
+cols_list <- cols_list[
   !cols_list %in% c("had_voter_abstention", "had_voter_against", "had_voter_favor",
                     "had_voter_intended_abstention", "had_voter_intended_against",
-                    "had_voter_intended_favor", "type", "decided_on_a_realization_of", 
+                    "had_voter_intended_favor", "type", "decided_on_a_realization_of",
                     "was_motivated_by") ]
 list_tmp <- lapply(
   X = setNames(object = cols_list, nm = cols_list),
@@ -238,8 +230,8 @@ list_tmp <- lapply(
       tidyr::unnest(tidyselect::any_of(j_col),
                     keep_empty = TRUE) } )
 
-#' The 2 cols `decided_on_a_realization_of` and `was_motivated_by` need to be unnested separately. 
-#' They provide additional info on amendments, and links between the daily votes. 
+#' The 2 cols `decided_on_a_realization_of` and `was_motivated_by` need to be unnested separately.
+#' They provide additional info on amendments, and links between the daily votes.
 #' If we include them all in the final voting data we have repeated rows.
 #' We treat them together below.
 
@@ -249,7 +241,7 @@ df_tmp <- Reduce(f = function(x, y) {
   merge(x, y, all = TRUE, by = c("activity_id"))},
   x = list_tmp, accumulate=F)
 # merge back with original flat data
-votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE) |> 
+votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE) |>
   data.table::as.data.table()
 votes_today[, c("id", "decisionAboutId_XMLLiteral") := NULL]
 # clean cols
@@ -261,10 +253,10 @@ votes_today[, `:=`(
     replacement = "", x = decision_method),
   had_activity_type = gsub(
     pattern = "http://publications.europa.eu/resource/authority/event/",
-    replacement = "", x = had_activity_type), 
+    replacement = "", x = had_activity_type),
   had_decision_outcome = gsub(
     pattern = "http://publications.europa.eu/resource/authority/decision-outcome/",
-    replacement = "", x = had_decision_outcome)  
+    replacement = "", x = had_decision_outcome)
 )]
 
 # write data to disk ----------------------------------------------------------#
@@ -276,25 +268,25 @@ data.table::fwrite(x = votes_today,
 # decided_on_a_realization_of
 if("decided_on_a_realization_of" %in% names(votes_raw) ) {
   decided_on_a_realization_of <- votes_raw |>
-  dplyr::select(activity_id, decided_on_a_realization_of) |>
-  dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-  tidyr::unnest(decided_on_a_realization_of) }
+    dplyr::select(activity_id, decided_on_a_realization_of) |>
+    dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
+    tidyr::unnest(decided_on_a_realization_of) }
 
 # was_motivated_by
 if("was_motivated_by" %in% names(votes_raw) ) {
-was_motivated_by <- votes_raw |>
-  dplyr::select(activity_id, was_motivated_by) |>
-  dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-  tidyr::unnest(was_motivated_by) }
+  was_motivated_by <- votes_raw |>
+    dplyr::select(activity_id, was_motivated_by) |>
+    dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
+    tidyr::unnest(was_motivated_by) }
 
 
 ###--------------------------------------------------------------------------###
 # Get final data --------------------------------------------------------------#
 # Here it's a left-join because you have to get rid of the EV still in the `votes_today`
 rcv_today <- merge(
-  x = rcv_vote,  
+  x = rcv_vote,
   y = votes_today[grepl(pattern = "ROLL_CALL_EV", x = votes_today$decision_method),],
-  by = c("activity_id"), all.x = TRUE, all.y = FALSE) |> 
+  by = c("activity_id"), all.x = TRUE, all.y = FALSE) |>
   data.table::as.data.table()
 rcv_today[, c("activity_id") := NULL]
 rcv_today[result == "had_voter_abstention", result := 0]
@@ -368,32 +360,32 @@ meps_rcv_today[, is_novote := fifelse(
 
 # Fill in cols
 cols_tofill <- c("activity_date", "activity_start_date", "activity_order",
-                 "had_decision_outcome", "decisionAboutId", 
-                 "number_of_attendees", "number_of_votes_abstention", 
-                 "number_of_votes_against", "number_of_votes_favor", 
-                 "activity_label_en", "activity_label_fr", "activity_label_mul", 
-                 "comment_en", "comment_fr", "referenceText_en", "referenceText_fr", 
-                 "responsible_organization_label_en", "responsible_organization_label_fr", 
-                 "headingLabel_en", "headingLabel_fr", 
+                 "had_decision_outcome", "decisionAboutId",
+                 "number_of_attendees", "number_of_votes_abstention",
+                 "number_of_votes_against", "number_of_votes_favor",
+                 "activity_label_en", "activity_label_fr", "activity_label_mul",
+                 "comment_en", "comment_fr", "referenceText_en", "referenceText_fr",
+                 "responsible_organization_label_en", "responsible_organization_label_fr",
+                 "headingLabel_en", "headingLabel_fr",
                  "forms_part_of", "recorded_in_a_realization_of")
-meps_rcv_today <- meps_rcv_today |> 
-  dplyr::group_by(notation_votingId) |> 
+meps_rcv_today <- meps_rcv_today |>
+  dplyr::group_by(notation_votingId) |>
   tidyr::fill(tidyselect::any_of(cols_tofill),
-              .direction = "downup") |> 
-  dplyr::ungroup() |> 
+              .direction = "downup") |>
+  dplyr::ungroup() |>
   data.table::as.data.table()
 # sapply(meps_rcv_today, function(x) sum(is.na(x))) # check
 
 # Sort data
 data.table::setkeyv(x = meps_rcv_today, cols = c("activity_start_date", "mep_name"))
-data.table::setcolorder(x = meps_rcv_today, 
+data.table::setcolorder(x = meps_rcv_today,
                         neworder = c("activity_date", "activity_start_date", "activity_order",
-                                     "notation_votingId", "mep_name", "result", 
+                                     "notation_votingId", "mep_name", "result",
                                      "vote_intention", "is_absent", "is_novote",
                                      "political_group", "country"))
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_today,
-                   file = here::here("data_out", 
+                   file = here::here("data_out",
                                      paste0(today, "_meps_rcv_today.csv") ) )
 
