@@ -94,11 +94,11 @@ url_list_tmp <- lapply(
                          "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
     api_url <- paste0(api_base, api_params)
     # Get data from URL
-    httr::GET(api_url) } ) 
+    httr::GET(api_url) } )
 
 # get data from API -----------------------------------------------------------#
 vote_list_tmp <- lapply(
-  X = url_list_tmp, 
+  X = url_list_tmp,
   function(i_url) {
     print(i_url$url) # check
     if ( httr::status_code(i_url) != 404 ) {
@@ -109,6 +109,61 @@ vote_list_tmp <- lapply(
       api_list$data } } )
 
 
+
+
+
+daily_vote_list <-
+
+for (i_data in vote_list_tmp) {
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ###--------------------------------------------------------------------------###
 ### Process data ---------------------------------------------------------------
 
@@ -117,7 +172,7 @@ vote_list_tmp <- lapply(
 #' Then we extract and append all votes.
 #' Then we grab all the dataframe-cols, unnest them, and keep only 3 languages (if available).
 #' Finally, we grab the list-cols and unnest them.
-#' For this latter class of cols, unnesting them results in a long data.frame. 
+#' For this latter class of cols, unnesting them results in a long data.frame.
 #' This means that if we merge it back with the metadata, that in turn will result in duplicate rows.
 
 #### Flat cols -----------------------------------------------------------------
