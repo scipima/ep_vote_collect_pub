@@ -12,7 +12,9 @@
 #' This means that if we merge it back with the metadata, that in turn will result in duplicate rows.
 ###--------------------------------------------------------------------------###
 
-process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2023-01-16"]]) {
+process_vote_day <- function(votes_raw = vote_list_tmp[[63]]) {
+
+    print(1)
 
     #### Flat cols -----------------------------------------------------------------
     cols_tokeep <- names(votes_raw)[
@@ -32,7 +34,6 @@ process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2023-01-16"]]) {
         dplyr::right_join(
             y = votes_today,
             by = "activity_id")
-
 
     #### Tackle df-cols ------------------------------------------------------------
     cols_dataframe <- names(votes_raw)[
@@ -55,8 +56,8 @@ process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2023-01-16"]]) {
         merge(x, y, all = TRUE, by = c("activity_id"))},
         x = list_tmp, accumulate=F)
     # merge back with original flat data
-    votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE)
-
+    votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE) |>
+        data.table::as.data.table()
 
     #### Tackle list-cols ----------------------------------------------------------
     cols_list <- names(votes_raw)[
@@ -66,29 +67,30 @@ process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2023-01-16"]]) {
                           "had_voter_intended_abstention", "had_voter_intended_against",
                           "had_voter_intended_favor", "type", "decided_on_a_realization_of",
                           "was_motivated_by") ]
-    list_tmp <- lapply(
-        X = setNames(object = cols_list, nm = cols_list),
-        FUN = function(j_col) {
-            votes_raw |>
-                dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
-                dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-                tidyr::unnest(tidyselect::any_of(j_col),
-                              keep_empty = TRUE) } )
 
-    #' The 2 cols `decided_on_a_realization_of` and `was_motivated_by` need to be unnested separately.
-    #' They provide additional info on amendments, and links between the daily votes.
-    #' If we include them all in the final voting data we have repeated rows.
-    #' We treat them together below.
+    if ( length(cols_list > 0)) {
+        list_tmp <- lapply(
+            X = setNames(object = cols_list, nm = cols_list),
+            FUN = function(j_col) {
+                votes_raw |>
+                    dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
+                    dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
+                    tidyr::unnest(tidyselect::any_of(j_col),
+                                  keep_empty = TRUE) } )
 
-    # Merge all DF in list --------------------------------------------------------#
-    # https://stackoverflow.com/questions/2209258/merge-several-data-frames-into-one-data-frame-with-a-loop
-    df_tmp <- Reduce(f = function(x, y) {
-        merge(x, y, all = TRUE, by = c("activity_id"))},
-        x = list_tmp, accumulate=F)
-    # merge back with original flat data
-    votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE) |>
-        data.table::as.data.table()
-    votes_today[, c("id", "decisionAboutId_XMLLiteral") := NULL]
+        # Merge all DF in list ------------------------------------------------#
+        # https://stackoverflow.com/questions/2209258/merge-several-data-frames-into-one-data-frame-with-a-loop
+        df_tmp <- Reduce(f = function(x, y) {
+            merge(x, y, all = TRUE, by = c("activity_id"))},
+            x = list_tmp, accumulate=F)
+        # merge back with original flat data
+        votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE) |>
+            data.table::as.data.table() }
+
+    # get rid of useless cols
+    cols_todelete <- names(votes_today)[
+        names(votes_today) %in% c("id", "decisionAboutId_XMLLiteral")]
+    votes_today[, c(cols_todelete) := NULL]
     # clean cols
     votes_today[, `:=`(
         activity_date = as.Date(activity_date),
@@ -98,9 +100,15 @@ process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2023-01-16"]]) {
             replacement = "", x = decision_method),
         had_activity_type = gsub(
             pattern = "http://publications.europa.eu/resource/authority/event/",
-            replacement = "", x = had_activity_type),
-        had_decision_outcome = gsub(
+            replacement = "", x = had_activity_type) ) ]
+    if ( "had_decision_outcome" %in% names(votes_today) ) {
+        votes_today[, had_decision_outcome := gsub(
             pattern = "http://publications.europa.eu/resource/authority/decision-outcome/",
-            replacement = "", x = had_decision_outcome)
-    )]
+            replacement = "", x = had_decision_outcome) ] }
+    return(votes_today)
 }
+
+p1=process_vote_day()
+vote_list_tmp <- vote_list_tmp[!sapply(X = vote_list_tmp, is.null)]
+p = lapply(X = vote_list_tmp, FUN = process_vote_day)
+
