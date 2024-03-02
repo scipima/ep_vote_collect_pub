@@ -11,12 +11,14 @@
 #' For this latter class of cols, unnesting them results in a long data.frame.
 #' This means that if we merge it back with the metadata, that in turn will result in duplicate rows.
 ###--------------------------------------------------------------------------###
+list_tmp <- NULL
+for (i_data in seq_along( vote_list_tmp) ) {
+    print(i_data)
+    votes_raw <- vote_list_tmp[[i_data]]
 
-process_vote_day <- function(votes_raw = vote_list_tmp[[63]]) {
+# process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
 
-    print(1)
-
-    #### Flat cols -----------------------------------------------------------------
+    #### Flat cols -------------------------------------------------------------
     cols_tokeep <- names(votes_raw)[
         sapply(votes_raw, class) %in% c("character", "integer")]
     votes_today <- votes_raw[, cols_tokeep] |>
@@ -105,10 +107,11 @@ process_vote_day <- function(votes_raw = vote_list_tmp[[63]]) {
         votes_today[, had_decision_outcome := gsub(
             pattern = "http://publications.europa.eu/resource/authority/decision-outcome/",
             replacement = "", x = had_decision_outcome) ] }
-    return(votes_today)
+    # return(votes_today)
+    list_tmp[[i_data]] <- votes_today
 }
 
 p1=process_vote_day()
 vote_list_tmp <- vote_list_tmp[!sapply(X = vote_list_tmp, is.null)]
-p = lapply(X = vote_list_tmp, FUN = process_vote_day)
+p = lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x))
 
