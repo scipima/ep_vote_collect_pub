@@ -73,15 +73,10 @@ calendar[, `:=`(year = as.integer(year),
 # get just the Plenaries that have already taken place, including today
 calendar <- calendar[date <= Sys.Date()]
 # get identifier for today's Plenary
-activity_id_today <- calendar$activity_id[calendar$date == max(calendar$date)]
 calendar[, c("type", "id", "had_activity_type") := NULL]
 
 # Remove API objects --------------------------------------------------------###
 rm(api_params, list_tmp)
-
-# if no data is yet available today, but want to test the script, uncomment line below
-# activity_id_today = "MTG-PL-2024-02-27"
-today <- gsub(pattern = "MTG-PL-|-", replacement = "", x = activity_id_today)
 
 
 ###--------------------------------------------------------------------------###
@@ -89,22 +84,29 @@ today <- gsub(pattern = "MTG-PL-|-", replacement = "", x = activity_id_today)
 # Returns all decisions in a single EP Meeting --------------------------------#
 # EXAMPLE: "https://data.europarl.europa.eu/api/v1/meetings/MTG-PL-2023-07-12/decisions?format=application%2Fld%2Bjson&json-layout=framed"
 
-vote_list_tmp <- vector(mode = "list", length = length(calendar$activity_id) )
-for(param in seq_along( calendar$activity_id ) ) {
-  # grid to loop over
-  print(calendar$activity_id[param]) # check
-  api_params <- paste0("/meetings/", calendar$activity_id[param],
-                       "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
-  api_url <- paste0(api_base, api_params)
-  # Get data from URL
-  api_raw <- httr::GET(api_url)
-  # Get data from .json
-  api_list <- jsonlite::fromJSON(
-    rawToChar(api_raw$content))
-  # extract info
-  vote_list_tmp[[param]] <- api_list$data
-  rm(api_raw)
-}
+# get status code from API ----------------------------------------------------#
+url_list_tmp <- lapply(
+  X = setNames(object = calendar$activity_id, nm = calendar$activity_id),
+  FUN = function(i_param) {
+    # grid to loop over
+    print(i_param) # check
+    api_params <- paste0("/meetings/", i_param,
+                         "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
+    api_url <- paste0(api_base, api_params)
+    # Get data from URL
+    httr::GET(api_url) } ) 
+
+# get data from API -----------------------------------------------------------#
+vote_list_tmp <- lapply(
+  X = url_list_tmp, 
+  function(i_url) {
+    print(i_url$url) # check
+    if ( httr::status_code(i_url) != 404 ) {
+      # Get data from .json
+      api_list <- jsonlite::fromJSON(
+        rawToChar(i_url$content))
+      # # extract info
+      api_list$data } } )
 
 
 ###--------------------------------------------------------------------------###
