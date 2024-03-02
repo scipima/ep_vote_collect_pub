@@ -112,10 +112,12 @@ votes_raw <- api_list$data
 ### Process data ---------------------------------------------------------------
 
 #' This is a nested data.frame, with several classes of cols.
-#' We tackled the flat part first, which gives us the RCV metadata.
+#' We tackle the flat part first, which gives us the RCV metadata.
 #' Then we extract and append all votes.
 #' Then we grab all the dataframe-cols, unnest them, and keep only 3 languages (if available).
 #' Finally, we grab the list-cols and unnest them.
+#' For this latter class of cols, unnesting them results in a long data.frame. 
+#' This means that if we merge it back with the metadata, that in turn will result in duplicate rows.
 
 #### Flat cols -----------------------------------------------------------------
 cols_tokeep <- names(votes_raw)[
