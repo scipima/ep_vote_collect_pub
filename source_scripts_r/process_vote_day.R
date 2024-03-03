@@ -11,14 +11,25 @@
 #' For this latter class of cols, unnesting them results in a long data.frame.
 #' This means that if we merge it back with the metadata, that in turn will result in duplicate rows.
 ###--------------------------------------------------------------------------###
+
+vote_list_tmp <- vote_list_tmp[!sapply(X = vote_list_tmp, is.null)]
 list_tmp <- NULL
 for (i_data in seq_along( vote_list_tmp) ) {
     print(i_data)
     votes_raw <- vote_list_tmp[[i_data]]
-
-# process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
-
+    
+    # process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
+    
     #### Flat cols -------------------------------------------------------------
+    # sometimes the class of some cols is corrupt - fix it here
+    if ("number_of_votes_abstention" %in% names(votes_raw)) {
+        votes_raw$number_of_votes_abstention <- as.integer(
+            as.character(votes_raw$number_of_votes_abstention) ) }
+    if ("number_of_votes_against" %in% names(votes_raw)) {
+        votes_raw$number_of_votes_against <- as.integer(
+            as.character(votes_raw$number_of_votes_against) ) }
+    
+    
     cols_tokeep <- names(votes_raw)[
         sapply(votes_raw, class) %in% c("character", "integer")]
     votes_today <- votes_raw[, cols_tokeep] |>
@@ -36,7 +47,7 @@ for (i_data in seq_along( vote_list_tmp) ) {
         dplyr::right_join(
             y = votes_today,
             by = "activity_id")
-
+    
     #### Tackle df-cols ------------------------------------------------------------
     cols_dataframe <- names(votes_raw)[
         sapply(votes_raw, class) %in% c("data.frame")]
@@ -51,7 +62,7 @@ for (i_data in seq_along( vote_list_tmp) ) {
                 dplyr::select(
                     activity_id,
                     contains( c("_en", "_fr", "_mul") ) ) } )
-
+    
     # Merge all DF in list --------------------------------------------------------#
     # https://stackoverflow.com/questions/2209258/merge-several-data-frames-into-one-data-frame-with-a-loop
     df_tmp <- Reduce(f = function(x, y) {
@@ -60,7 +71,7 @@ for (i_data in seq_along( vote_list_tmp) ) {
     # merge back with original flat data
     votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE) |>
         data.table::as.data.table()
-
+    
     #### Tackle list-cols ----------------------------------------------------------
     cols_list <- names(votes_raw)[
         sapply(votes_raw, class) %in% c("list")]
@@ -69,7 +80,7 @@ for (i_data in seq_along( vote_list_tmp) ) {
                           "had_voter_intended_abstention", "had_voter_intended_against",
                           "had_voter_intended_favor", "type", "decided_on_a_realization_of",
                           "was_motivated_by") ]
-
+    
     if ( length(cols_list > 0)) {
         list_tmp <- lapply(
             X = setNames(object = cols_list, nm = cols_list),
@@ -77,9 +88,8 @@ for (i_data in seq_along( vote_list_tmp) ) {
                 votes_raw |>
                     dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
                     dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-                    tidyr::unnest(tidyselect::any_of(j_col),
-                                  keep_empty = TRUE) } )
-
+                    tidyr::unnest(tidyselect::any_of(j_col), keep_empty = TRUE) } )
+        
         # Merge all DF in list ------------------------------------------------#
         # https://stackoverflow.com/questions/2209258/merge-several-data-frames-into-one-data-frame-with-a-loop
         df_tmp <- Reduce(f = function(x, y) {
@@ -88,7 +98,7 @@ for (i_data in seq_along( vote_list_tmp) ) {
         # merge back with original flat data
         votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE) |>
             data.table::as.data.table() }
-
+    
     # get rid of useless cols
     cols_todelete <- names(votes_today)[
         names(votes_today) %in% c("id", "decisionAboutId_XMLLiteral")]
@@ -112,6 +122,5 @@ for (i_data in seq_along( vote_list_tmp) ) {
 }
 
 p1=process_vote_day()
-vote_list_tmp <- vote_list_tmp[!sapply(X = vote_list_tmp, is.null)]
 p = lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x))
 
