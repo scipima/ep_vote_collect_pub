@@ -109,234 +109,39 @@ vote_list_tmp <- lapply(
       api_list$data } } )
 
 
-
-
-
-daily_vote_list <-
-
-for (i_data in vote_list_tmp) {
-
-
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###--------------------------------------------------------------------------###
-### Process data ---------------------------------------------------------------
+# Source functions ------------------------------------------------------------#
+source(file = here::here("source_scripts_r", "process_vote_day.R"))
+source(file = here::here("source_scripts_r", "process_rcv_day.R"))
+###--------------------------------------------------------------------------###
 
-#' This is a nested data.frame, with several classes of cols.
-#' We tackle the flat part first, which gives us the RCV metadata.
-#' Then we extract and append all votes.
-#' Then we grab all the dataframe-cols, unnest them, and keep only 3 languages (if available).
-#' Finally, we grab the list-cols and unnest them.
-#' For this latter class of cols, unnesting them results in a long data.frame.
-#' This means that if we merge it back with the metadata, that in turn will result in duplicate rows.
-
-#### Flat cols -----------------------------------------------------------------
-cols_tokeep <- names(votes_raw)[
-  sapply(votes_raw, class) %in% c("character", "integer")]
-votes_today <- votes_raw[, cols_tokeep] |>
-  dplyr::distinct() # DEFENSIVE: there may be duplicate rows
-# `type` is the only col we have to unnest wider
-votes_today <- votes_raw |>
-  dplyr::select(activity_id, type) |>
-  dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-  tidyr::unnest_wider(type, names_sep = "_") |>
-  dplyr::mutate(type = ifelse(
-    test = type_1 %in% "Decision",
-    yes = paste(type_1, type_2, sep = "_"),
-    no = paste(type_2, type_1, sep = "_") ) ) |>
-  dplyr::select(-starts_with("type_")) |>
-  dplyr::right_join(
-    y = votes_today,
-    by = "activity_id")
-
-
-#### Vote data -----------------------------------------------------------------
-# Votes -----------------------------------------------------------------------#
-vote_cols <- c("had_voter_abstention", "had_voter_against", "had_voter_favor")
-rcv_vote <- lapply(
-  X = setNames(object = vote_cols, nm = vote_cols),
-  FUN = function(j_col) {
-    votes_raw |>
-      dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |>
-      dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
-      dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-      tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
-  data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "result") |>
-  dplyr::rename(pers_id = had_voter_abstention) |>
-  dplyr::distinct() # DEFENSIVE: there may be duplicate rows
-
-# check for duplicates again
-df_check <- rcv_vote[, .N, by = list(pers_id, activity_id)]
-
-if (mean(df_check$N) > 1) {
-  warning("WATCH OUT: You may have duplicate records")}
-
-# Intentions ------------------------------------------------------------------#
-vote_intention_cols <- c("had_voter_intended_abstention", "had_voter_intended_against",
-                         "had_voter_intended_favor")
-vote_intention_cols <- vote_intention_cols[vote_intention_cols %in% names(votes_raw)]
-rcv_vote_intention <- lapply(
-  X = setNames(object = vote_intention_cols, nm = vote_intention_cols),
-  FUN = function(j_col) {
-    votes_raw |>
-      dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |>
-      dplyr::select(activity_id, tidyselect::any_of(j_col) ) |>
-      dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-      tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
-  data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "vote_intention") |>
-  dplyr::rename(pers_id = 3) |>
-  dplyr::distinct() # DEFENSIVE: there may be duplicate rows
-
-# check for duplicates again
-df_check <- rcv_vote[, .N, by = list(pers_id, activity_id)]
-
-if (mean(df_check$N) > 1) {
-  warning("WATCH OUT: You may have duplicate records")}
-
-# Merge vote with intentions  -------------------------------------------------#
-# !! WATCH OUT: This must be a FULL JOIN !!
-# This is because sometime MEPs don't have a vote, but do have an intention
-rcv_vote <- merge(rcv_vote, rcv_vote_intention,
-                  by = c("pers_id", "activity_id"),
-                  all = TRUE) |> # !! FULL JOIN HERE - IMPORTANT !!
-  dplyr::mutate(pers_id = gsub(pattern = "person/", replacement = "", x = pers_id)) |>
-  data.table::as.data.table()
-
-
-#### Tackle df-cols ------------------------------------------------------------
-cols_dataframe <- names(votes_raw)[
-  sapply(votes_raw, class) %in% c("data.frame")]
-list_tmp <- lapply(
-  X = setNames(object = cols_dataframe, nm = cols_dataframe),
-  FUN = function(j_col) {
-    votes_raw |>
-      dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
-      dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-      tidyr::unnest(tidyselect::any_of(j_col),
-                    keep_empty = TRUE, names_sep = "_") |>
-      dplyr::select(
-        activity_id,
-        contains( c("_en", "_fr", "_mul") ) ) } )
-
-# Merge all DF in list --------------------------------------------------------#
-# https://stackoverflow.com/questions/2209258/merge-several-data-frames-into-one-data-frame-with-a-loop
-df_tmp <- Reduce(f = function(x, y) {
-  merge(x, y, all = TRUE, by = c("activity_id"))},
-  x = list_tmp, accumulate=F)
-# merge back with original flat data
-votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE)
-
-
-#### Tackle list-cols ----------------------------------------------------------
-cols_list <- names(votes_raw)[
-  sapply(votes_raw, class) %in% c("list")]
-cols_list <- cols_list[
-  !cols_list %in% c("had_voter_abstention", "had_voter_against", "had_voter_favor",
-                    "had_voter_intended_abstention", "had_voter_intended_against",
-                    "had_voter_intended_favor", "type", "decided_on_a_realization_of",
-                    "was_motivated_by") ]
-list_tmp <- lapply(
-  X = setNames(object = cols_list, nm = cols_list),
-  FUN = function(j_col) {
-    votes_raw |>
-      dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
-      dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-      tidyr::unnest(tidyselect::any_of(j_col),
-                    keep_empty = TRUE) } )
-
-#' The 2 cols `decided_on_a_realization_of` and `was_motivated_by` need to be unnested separately.
-#' They provide additional info on amendments, and links between the daily votes.
-#' If we include them all in the final voting data we have repeated rows.
-#' We treat them together below.
-
-# Merge all DF in list --------------------------------------------------------#
-# https://stackoverflow.com/questions/2209258/merge-several-data-frames-into-one-data-frame-with-a-loop
-df_tmp <- Reduce(f = function(x, y) {
-  merge(x, y, all = TRUE, by = c("activity_id"))},
-  x = list_tmp, accumulate=F)
-# merge back with original flat data
-votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE) |>
-  data.table::as.data.table()
-votes_today[, c("id", "decisionAboutId_XMLLiteral") := NULL]
-# clean cols
-votes_today[, `:=`(
-  activity_date = as.Date(activity_date),
-  activity_start_date = lubridate::as_datetime(activity_start_date),
-  decision_method = gsub(
-    pattern = "http://publications.europa.eu/resource/authority/decision-method/",
-    replacement = "", x = decision_method),
-  had_activity_type = gsub(
-    pattern = "http://publications.europa.eu/resource/authority/event/",
-    replacement = "", x = had_activity_type),
-  had_decision_outcome = gsub(
-    pattern = "http://publications.europa.eu/resource/authority/decision-outcome/",
-    replacement = "", x = had_decision_outcome)
-)]
+# Get Votes and RCV
+votes_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x)) |> 
+  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "activity_id")
+rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x)) |> 
+  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "activity_id")
 
 # write data to disk ----------------------------------------------------------#
-data.table::fwrite(x = votes_today,
-                   file = here::here("data_out", paste0(today, "_votes_today.csv") ) )
+data.table::fwrite(x = votes_dt,
+                   file = here::here("data_out", "votes_dt.csv") )
+data.table::fwrite(x = rcv_dt,
+                   file = here::here("data_out", "rcv_dt.csv") )
 
 
 #### `decided_on_a_realization_of` and `was_motivated_by` ----------------------
 # decided_on_a_realization_of
-if("decided_on_a_realization_of" %in% names(votes_raw) ) {
-  decided_on_a_realization_of <- votes_raw |>
-    dplyr::select(activity_id, decided_on_a_realization_of) |>
-    dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-    tidyr::unnest(decided_on_a_realization_of) }
+# if("decided_on_a_realization_of" %in% names(votes_raw) ) {
+#   decided_on_a_realization_of <- votes_raw |>
+#     dplyr::select(activity_id, decided_on_a_realization_of) |>
+#     dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
+#     tidyr::unnest(decided_on_a_realization_of) }
 
 # was_motivated_by
-if("was_motivated_by" %in% names(votes_raw) ) {
-  was_motivated_by <- votes_raw |>
-    dplyr::select(activity_id, was_motivated_by) |>
-    dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-    tidyr::unnest(was_motivated_by) }
+# if("was_motivated_by" %in% names(votes_raw) ) {
+#   was_motivated_by <- votes_raw |>
+#     dplyr::select(activity_id, was_motivated_by) |>
+#     dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
+#     tidyr::unnest(was_motivated_by) }
 
 
 ###--------------------------------------------------------------------------###
@@ -348,14 +153,7 @@ rcv_today <- merge(
   by = c("activity_id"), all.x = TRUE, all.y = FALSE) |>
   data.table::as.data.table()
 rcv_today[, c("activity_id") := NULL]
-rcv_today[result == "had_voter_abstention", result := 0]
-rcv_today[result == "had_voter_favor", result := 1]
-rcv_today[result == "had_voter_against", result := -1]
-rcv_today[, result := as.integer(result)]
-rcv_today[vote_intention == "had_voter_intended_abstention", vote_intention := 0]
-rcv_today[vote_intention == "had_voter_intended_favor", vote_intention := 1]
-rcv_today[vote_intention == "had_voter_intended_against", vote_intention := -1]
-rcv_today[, vote_intention := as.integer(vote_intention)]
+
 # checks
 # str(rcv_today)
 # rcv_today[, .N, by = list(notation_votingId, pers_id)][order(N)] # check, must be always 1
@@ -365,23 +163,7 @@ rcv_today[, vote_intention := as.integer(vote_intention)]
 rm(api_raw, api_list, list_tmp, df_check)
 
 
-###--------------------------------------------------------------------------###
-## GET/meps/show-current -------------------------------------------------------
-# Returns the list of all active MEPs for today's date
-api_raw <- httr::GET(
-  url = "https://data.europarl.europa.eu/api/v1/meps/show-current?format=application%2Fld%2Bjson&offset=0")
-api_list <- jsonlite::fromJSON(
-  rawToChar(api_raw$content),
-  flatten = TRUE)
-meps_current <- api_list$data |>
-  janitor::clean_names() |>
-  dplyr::select(
-    mep_name = label, pers_id = identifier,
-    political_group = api_political_group,
-    country = api_country_of_representation)
 
-# Remove API objects --------------------------------------------------------###
-rm(api_raw, api_params, api_url, api_list)
 
 
 ###--------------------------------------------------------------------------###
