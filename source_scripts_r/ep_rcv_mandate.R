@@ -2,7 +2,7 @@
 # Daily EP Votes ---------------------------------------------------------------
 ###--------------------------------------------------------------------------###
 
-rm(list = ls())
+# rm(list = ls())
 
 ###--------------------------------------------------------------------------###
 #' DESCRIPTION.
@@ -40,7 +40,7 @@ api_params <- paste0("/meetings?year=", years,
 
 # Function ------------------------------------------------------------------###
 # list_tmp <- vector(mode = "list", length = length(api_params))
-get_docs_year <- function(links = api_params) {
+get_meetings_year <- function(links = api_params) {
   future.apply::future_lapply(
     X = links, FUN = function(param) {
       # for (param in seq_along(api_params)) {  # UNCOMMENT TO TEST LOOP
@@ -58,7 +58,7 @@ get_docs_year <- function(links = api_params) {
 
 # parallelisation -----------------------------------------------------------###
 future::plan(strategy = multisession) # Run in parallel on local computer
-list_tmp <- get_docs_year()
+list_tmp <- get_meetings_year()
 future::plan(strategy = sequential) # revert to normal
 
 # append data ---------------------------------------------------------------###
@@ -76,7 +76,7 @@ calendar <- calendar[date <= Sys.Date()]
 calendar[, c("type", "id", "had_activity_type") := NULL]
 
 # Remove API objects --------------------------------------------------------###
-rm(api_params, list_tmp)
+rm(api_base, api_params, list_tmp)
 
 
 ###--------------------------------------------------------------------------###
@@ -90,9 +90,9 @@ url_list_tmp <- lapply(
   FUN = function(i_param) {
     # grid to loop over
     print(i_param) # check
-    api_params <- paste0("/meetings/", i_param,
-                         "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
-    api_url <- paste0(api_base, api_params)
+    api_url <- paste0("https://data.europarl.europa.eu/api/v1/meetings/", 
+                      i_param,
+                      "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
     # Get data from URL
     httr::GET(api_url) } )
 
@@ -144,6 +144,15 @@ data.table::fwrite(x = rcv_dt,
 #     tidyr::unnest(was_motivated_by) }
 
 
+
+
+
+
+
+
+
+
+
 ###--------------------------------------------------------------------------###
 # Get final data --------------------------------------------------------------#
 # Here it's a left-join because you have to get rid of the EV still in the `votes_today`
@@ -164,14 +173,8 @@ rm(api_raw, api_list, list_tmp, df_check)
 
 
 
-
-
 ###--------------------------------------------------------------------------###
 ## Merge RCV with MEPs ---------------------------------------------------------
-# Create a grid with all MEPs who SHOULD have been present
-meps_rcv_grid <- tidyr::expand_grid(
-  meps_current,
-  notation_votingId = unique(rcv_today$notation_votingId) )
 
 # merge grid with RCV data
 meps_rcv_today <- merge(x = meps_rcv_grid,

@@ -82,6 +82,6 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
 }
 
 # test
-p1=process_rcv_day()
-p = lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x))
+# p1=process_rcv_day()
+# p = lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x))
 
