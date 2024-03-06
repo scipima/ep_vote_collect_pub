@@ -31,39 +31,37 @@ if ( !dir.exists(here::here("data_out") ) ) {
 # EXAMPLE: https://data.europarl.europa.eu/api/v1/plenary-documents?year=2016&format=application%2Fld%2Bjson&offset=0
 # create parameters to loop over
 api_base <- "https://data.europarl.europa.eu/api/v1"
-years <- 2023 : data.table::year(Sys.Date()) # currently, API only has data since 2023
+years <- 2019 : data.table::year(Sys.Date()) # currently, API only has data since 2023
 # If more years are needed, change the line above to:
 # years <- 2016 : data.table::year(Sys.Date())
 # grid to loop over
-api_params <- paste0("/meetings?year=", years,
+api_params <- paste0(api_base, "/meetings?year=", years,
                      "&format=application%2Fld%2Bjson&offset=0")
 
-# Function ------------------------------------------------------------------###
-# list_tmp <- vector(mode = "list", length = length(api_params))
-get_meetings_year <- function(links = api_params) {
-  future.apply::future_lapply(
-    X = links, FUN = function(param) {
-      # for (param in seq_along(api_params)) {  # UNCOMMENT TO TEST LOOP
-      # api_url <- paste0(api_base, api_params[param])  # UNCOMMENT TO TEST LOOP
-      api_url <- paste0(api_base, param)
-      # print(api_url)
-      api_raw <- httr::GET(api_url)
-      api_list <- jsonlite::fromJSON(
-        rawToChar(api_raw$content),
-        flatten = TRUE)
-      # extract info
-      docs_year <- api_list$data
-      # list[[param]] <- docs_year # UNCOMMENT TO TEST LOOP
-      return(docs_year) } ) }
+# get data from API -----------------------------------------------------------#
+get_meetings_json <- lapply(
+  X = api_params, 
+  FUN = function(api_url) {
+    print(api_url)
+    api_raw <- httr::GET(api_url)
+    return(api_raw) } )
+names(get_meetings_json) <- years
 
-# parallelisation -----------------------------------------------------------###
-future::plan(strategy = multisession) # Run in parallel on local computer
-list_tmp <- get_meetings_year()
-future::plan(strategy = sequential) # revert to normal
+# get data from JSON -----------------------------------------------------------#
+json_list <- lapply(
+  X = get_meetings_json,
+  function(i_json) {
+    print(i_json$url) # check
+    if ( httr::status_code(i_json) != 404 ) {
+      # Get data from .json
+      api_list <- jsonlite::fromJSON(
+        rawToChar(i_json$content))
+      # # extract info
+      return(api_list$data) } } )
+
 
 # append data ---------------------------------------------------------------###
-names(list_tmp) <- years
-calendar <- data.table::rbindlist(list_tmp,
+calendar <- data.table::rbindlist(json_list,
                                   use.names=TRUE, fill=TRUE, idcol="year")
 # sapply(plenary_documents, function(x) sum(is.na(x)))
 # clean data
@@ -71,12 +69,13 @@ calendar[, `:=`(year = as.integer(year),
                 date = as.Date(gsub(pattern = "eli/dl/event/MTG-PL-",
                                     replacement = "", x = id)))]
 # get just the Plenaries that have already taken place, including today
-calendar <- calendar[date <= Sys.Date()]
+calendar <- calendar[date >= as.Date("2019-07-01")
+                     & date <= Sys.Date()]
 # get identifier for today's Plenary
 calendar[, c("type", "id", "had_activity_type") := NULL]
 
 # Remove API objects --------------------------------------------------------###
-rm(api_base, api_params, list_tmp)
+rm(api_base, api_params, get_meetings_json, json_list)
 
 
 ###--------------------------------------------------------------------------###
@@ -97,16 +96,21 @@ url_list_tmp <- lapply(
     httr::GET(api_url) } )
 
 # get data from API -----------------------------------------------------------#
-vote_list_tmp <- lapply(
-  X = url_list_tmp,
-  function(i_url) {
-    print(i_url$url) # check
-    if ( httr::status_code(i_url) != 404 ) {
-      # Get data from .json
-      api_list <- jsonlite::fromJSON(
-        rawToChar(i_url$content))
-      # # extract info
-      api_list$data } } )
+get_vote <- function(links = url_list_tmp) {
+  future.apply::future_lapply(
+    X = links, FUN = function(i_url) {
+      print(i_url$url) # check
+      if ( httr::status_code(i_url) != 404 ) {
+        # Get data from .json
+        api_list <- jsonlite::fromJSON(
+          rawToChar(i_url$content) )
+        # extract info
+        return(api_list$data) } } ) }
+
+# parallelisation -----------------------------------------------------------###
+future::plan(strategy = multisession) # Run in parallel on local computer
+list_tmp <- get_vote()
+future::plan(strategy = sequential) # revert to normal
 
 
 ###--------------------------------------------------------------------------###
