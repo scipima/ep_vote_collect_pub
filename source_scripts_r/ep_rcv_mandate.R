@@ -89,6 +89,7 @@ url_list_tmp <- lapply(
   FUN = function(i_param) {
     # grid to loop over
     print(i_param) # check
+    Sys.sleep(1) # call politely
     api_url <- paste0("https://data.europarl.europa.eu/api/v1/meetings/", 
                       i_param,
                       "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
