@@ -85,7 +85,8 @@ rm(api_base, api_params, get_meetings_json, json_list)
 
 # get status code from API ----------------------------------------------------#
 url_list_tmp <- lapply(
-  X = setNames(object = calendar$activity_id, nm = calendar$activity_id),
+  X = setNames(object = calendar$activity_id, 
+               nm = calendar$activity_id),
   FUN = function(i_param) {
     # grid to loop over
     print(i_param) # check
@@ -110,9 +111,11 @@ get_vote <- function(links = url_list_tmp) {
 
 # parallelisation -----------------------------------------------------------###
 future::plan(strategy = multisession) # Run in parallel on local computer
-list_tmp <- get_vote()
+vote_list_tmp <- get_vote()
 future::plan(strategy = sequential) # revert to normal
 
+# remove objects
+rm(url_list_tmp)
 
 ###--------------------------------------------------------------------------###
 # Source functions ------------------------------------------------------------#

@@ -11,12 +11,8 @@
 #' This means that if we merge it back with the metadata, that in turn will result in duplicate rows.
 ###--------------------------------------------------------------------------###
 
+# get rid of NULL items in list
 vote_list_tmp <- vote_list_tmp[!sapply(X = vote_list_tmp, is.null)]
-
-# list_tmp <- NULL
-# for (i_data in seq_along( vote_list_tmp) ) {
-#     print(i_data)
-#     votes_raw <- vote_list_tmp[[i_data]]
 
 process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
     
@@ -126,6 +122,8 @@ process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
     return(votes_today)
 }
 
-# test
+
+###--------------------------------------------------------------------------###
+# test ------------------------------------------------------------------------#
 # p1=process_vote_day()
 # p = lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x))
