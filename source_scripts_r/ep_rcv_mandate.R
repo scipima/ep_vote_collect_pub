@@ -143,9 +143,13 @@ data.table::fwrite(x = rcv_dt,
 ###--------------------------------------------------------------------------###
 # Source script ---------------------------------------------------------------#
 
-#' Get clean data on MEPs' membership and mandate duration
+#' Get clean data on MEPs' membership and mandate duration.
 
 source(file = here::here("source_scripts_r", "meps_api.R"))
+
+#' Get look-up tables for MEPs' memberships.
+
+source(file = here::here("source_scripts_r", "ep_bodies.R"))
 ###--------------------------------------------------------------------------###
 
 

@@ -14,7 +14,9 @@
 
 ###--------------------------------------------------------------------------###
 ## Libraries -------------------------------------------------------------------
-library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(lubridate)
 library(data.table)
 library(httr)
 library(jsonlite)
@@ -200,3 +202,7 @@ data.table::fwrite(x =  meps_dates_ids,
 rm(hasMembership, meps_data_grid, meps_dates, meps_mandate, meps_start_end,
    meps_polgroups, meps_dates_polgroups,
    meps_natparties, meps_dates_natparties)
+
+# test:before brexit, N should be 751; after brexit, 705
+# meps_dates_ids[, .N, by = list(activity_date)]
+
