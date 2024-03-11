@@ -1,14 +1,39 @@
-# ep_vote_day_collect
-This repo tests the collection of daily votes in the European Parliament.
-Currently, there are just 2 files in the repo:
+# EP Vote Collection
+This repo tests the collection of votes in the European Parliament.
+It can be used in two different ways.
+First, the repo enables the collection of daily votes, by EP Political Group.
+Second, the repo also offers the codes to download and put in tabular format all votes for the current mandate available on the API. 
+
+
+## EP Daily Votes
+To collect and clean the daily votes in the EP, just 2 of the files in the repo are necessary:
 
 * `ep_rcv_today.R` collects all relevant data to today's Plenary Session. 
 More precisely, it starts by selecting the last Session from the calendar.
-Then grabs and process all the voting data. 
+Then grabs and process all the voting data for the current day. 
 Finally it merges just the RCV data with current MEPs in the House. 
 At the end of this process, 2 files are deposited in the `data_out` folder: `meps_rcv_today.csv` and `votes_today.csv`.
 * `aggregate_rcv.R` aggregates the results of the RCVs by EP Political Groups.
-The script stores 2 files in the `data_out` folder: `result_bygroup_byrcv.csv`, which provides the tallies fo the votes by Group; and `fullresult_bygroup_byrcv.csv`, which augment the data by inclduing not only the votes reported by the EP, but also `absent` MEPs and MEPS who `did not vote` in specific RCVs.
+The script stores 2 files in the `data_out` folder: `result_bygroup_byrcv.csv`, which provides the tallies of the votes by Group; and `fullresult_bygroup_byrcv.csv`, which augments the data by inclduing not only the votes reported by the EP, but also `absent` MEPs and MEPS who `did not vote` in specific RCVs.
+
+
+## EP Votes during the 9th mandate
+To collect and clean all votes during this mandate, several files must be executed in the following order:
+
+* `ep_rcv_mandate.R` is the master script that executes all other scritpts.
+It first gegts the list of all `meetings`.
+Then gets all available data from the EP API on these meetings, namely votes.
+It calls two functions to clean the data, `process_vote_day.R` and `process_rcv_day.R`, which respectively deal with *votes* and *rcv* (unsurprisingly ...).
+Having cleaned the data, the scripts then saves them into 2 files, `votes_dt.csv` (a rather wide files with as many rows as votes on that day), and `rcv_dt.csv` (a very long file containing all RCVs). 
+* Once `ep_rcv_mandate.R` has collected and cleaned the voting data, it has to combine it with information on the MEPs.
+The `meps_api.R` calls the EP API to first download the full list of MEPs during the 9th mandate, and then grab all the supplementary information on each of these MEPs.
+In particular, it grabs the `country`, the `national party`, the `political group`, and then the duration of the `mandates`.
+It then combines these pieces of information into a single dataframe, `meps_dates_ids.csv`, which lists all the MEPs who have transited through the EP, with each MEP listed for all the dates in which he/she should have been present in the House, as well as his/her `membership`.
+* National parties and EP Political Groups feature as integers in the data, so we also have to execute another script - `ep_bodies.R` - to grab the dictionaries for these unique ids.
+Bear in mind that the user should always double check these, as mistakes at data entry stage tend to occur.
+
+ 
+
 
 
 ## Data
@@ -28,6 +53,10 @@ If that is the case, the code breaks and an error is thrown.
 Error, as the day may be messy.
 For instance, many language translations only accumulates over time.
 Usually the only ones readily available are the `mul` (for multilingual, i.e. French), or `.fr` (for French).
+
+## EP Votes during this Mandate
+
+
 Further, there may be duplicate lines. 
 MEPs are also given a time frame in which they can report that they pressed the wrong button (this is recorded under `intentions`).
 In addition, more columns may be made available over time.
