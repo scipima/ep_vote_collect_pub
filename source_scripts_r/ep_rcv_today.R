@@ -63,7 +63,7 @@ list_tmp <- get_docs_year()
 future::plan(strategy = sequential) # revert to normal
 
 # append data ---------------------------------------------------------------###
-names(list_tmp) <- years
+names(list_tmp) <- years # name list items
 calendar <- data.table::rbindlist(list_tmp,
                                   use.names=TRUE, fill=TRUE, idcol="year")
 # sapply(plenary_documents, function(x) sum(is.na(x)))
@@ -101,8 +101,7 @@ api_raw <- httr::GET(api_url)
 ###--------------------------------------------------------------------------###
 # Check for errors - !! DATA MAY NOT BE AVAILABLE YET !!
 if (httr::http_error(api_raw)) {
-  stop( "API request failed. Data is not available yet. Please try again later." )
-}
+  stop( "API request failed. Data is not available yet. Please try again later." ) }
 ###--------------------------------------------------------------------------###
 
 # Get data from .json
