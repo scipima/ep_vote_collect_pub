@@ -31,6 +31,7 @@ In particular, it grabs the `country`, the `national party`, the `political grou
 It then combines these pieces of information into a single dataframe, `meps_dates_ids.csv`, which lists all the MEPs who have transited through the EP, with each MEP listed for all the dates in which he/she should have been present in the House, as well as his/her `membership`.
 * National parties and EP Political Groups feature as integers in the data, so we also have to execute another script - `ep_bodies.R` - to grab the dictionaries for these unique ids.
 Bear in mind that the user should always double check these, as mistakes at data entry stage tend to occur.
+This script spits out 3 tables, `national_parties.csv`, `political_groups.csv`, and `body_id_full.csv`.
 
  
 
