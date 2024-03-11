@@ -40,7 +40,7 @@ api_params <- paste0(api_base, "/meetings?year=", years,
 
 # get data from API -----------------------------------------------------------#
 get_meetings_json <- lapply(
-  X = api_params, 
+  X = api_params,
   FUN = function(api_url) {
     print(api_url)
     api_raw <- httr::GET(api_url)
@@ -85,13 +85,13 @@ rm(api_base, api_params, get_meetings_json, json_list)
 
 # get status code from API ----------------------------------------------------#
 url_list_tmp <- lapply(
-  X = setNames(object = calendar$activity_id, 
+  X = setNames(object = calendar$activity_id,
                nm = calendar$activity_id),
   FUN = function(i_param) {
     # grid to loop over
     print(i_param) # check
     Sys.sleep(1) # call politely
-    api_url <- paste0("https://data.europarl.europa.eu/api/v1/meetings/", 
+    api_url <- paste0("https://data.europarl.europa.eu/api/v1/meetings/",
                       i_param,
                       "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
     # Get data from URL
@@ -114,19 +114,22 @@ future::plan(strategy = multisession) # Run in parallel on local computer
 vote_list_tmp <- get_vote()
 future::plan(strategy = sequential) # revert to normal
 
-# remove objects
+# remove objects --------------------------------------------------------------#
 rm(url_list_tmp)
 
 ###--------------------------------------------------------------------------###
 # Source functions ------------------------------------------------------------#
+
+#' These 2 functions clean, respectively, the vote data and the RCV data.
+
 source(file = here::here("source_scripts_r", "process_vote_day.R"))
 source(file = here::here("source_scripts_r", "process_rcv_day.R"))
 ###--------------------------------------------------------------------------###
 
 # Get Votes and RCV
-votes_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x)) |> 
+votes_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x) ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "activity_id")
-rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x)) |> 
+rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x) ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "activity_id")
 
 # write data to disk ----------------------------------------------------------#
@@ -136,20 +139,19 @@ data.table::fwrite(x = rcv_dt,
                    file = here::here("data_out", "rcv_dt.csv") )
 
 
-#### `decided_on_a_realization_of` and `was_motivated_by` ----------------------
-# decided_on_a_realization_of
-# if("decided_on_a_realization_of" %in% names(votes_raw) ) {
-#   decided_on_a_realization_of <- votes_raw |>
-#     dplyr::select(activity_id, decided_on_a_realization_of) |>
-#     dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-#     tidyr::unnest(decided_on_a_realization_of) }
 
-# was_motivated_by
-# if("was_motivated_by" %in% names(votes_raw) ) {
-#   was_motivated_by <- votes_raw |>
-#     dplyr::select(activity_id, was_motivated_by) |>
-#     dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-#     tidyr::unnest(was_motivated_by) }
+###--------------------------------------------------------------------------###
+# Source script ---------------------------------------------------------------#
+
+#' Get clean data on MEPs' membership and mandate duration
+
+source(file = here::here("source_scripts_r", "meps_api.R"))
+###--------------------------------------------------------------------------###
+
+
+
+
+
 
 
 
@@ -167,7 +169,8 @@ data.table::fwrite(x = rcv_dt,
 rcv_today <- merge(
   x = rcv_vote,
   y = votes_today[grepl(pattern = "ROLL_CALL_EV", x = votes_today$decision_method),],
-  by = c("activity_id"), all.x = TRUE, all.y = FALSE) |>
+  by = c("activity_id"),
+  all.x = TRUE, all.y = FALSE) |>
   data.table::as.data.table()
 rcv_today[, c("activity_id") := NULL]
 
