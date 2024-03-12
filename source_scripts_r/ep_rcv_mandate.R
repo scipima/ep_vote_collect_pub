@@ -17,7 +17,7 @@
 ## Libraries -------------------------------------------------------------------
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.apply",
-  "httr", "here", "lubridate", "janitor", "jsonlite") )
+                        "httr", "here", "lubridate", "janitor", "jsonlite") )
 
 # check if dir exists to dump processed files
 if ( !dir.exists(here::here("data_out") ) ) {
@@ -130,7 +130,7 @@ votes_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x) ) |>
 rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x) ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 rcv_dt[, activity_date := as.Date(gsub(pattern = "MTG-PL-",
-                            replacement = "", x = plenary_id))]
+                                       replacement = "", x = plenary_id))]
 rcv_dt[, plenary_id := NULL]
 # sapply(rcv_dt, function(x) sum(is.na(x))) # check
 
@@ -170,89 +170,76 @@ meps_rcv_grid <- merge(
   y = unique(rcv_dt[,  list(activity_date, notation_votingId) ] ) ,
   by = "activity_date", all = TRUE, allow.cartesian = TRUE) |>
   dplyr::left_join(y = meps_dates_ids,
-    by = c("pers_id", "activity_date") )
-meps_rcv_grid[, activity_date := as.Date(activity_date)]    
-dim(meps_rcv_grid)
-sapply(meps_rcv_grid, function(x) sum(is.na(x)))
+                   by = c("pers_id", "activity_date") )
+meps_rcv_grid[, activity_date := as.Date(activity_date)]
+# dim(meps_rcv_grid)
+# sapply(meps_rcv_grid, function(x) sum(is.na(x)))
 
 # merge grid with RCV data
 meps_rcv_mandate <- merge(x = meps_rcv_grid, y = rcv_dt,
-  by = c("activity_date", "notation_votingId", "pers_id"), 
-  all = TRUE) |>
+                          by = c("activity_date", "notation_votingId", "pers_id"),
+                          all = TRUE) |>
   data.table::as.data.table()
 
 # check
 if ( nrow(meps_rcv_mandate) > nrow(meps_rcv_grid) ) {
-  warning("WATCH OUT: You may have duplicate records")}
+  warning("WATCH OUT: You may have duplicate records") }
 
 
-
-
-# p = merge(
-#   x = meps_rcv_grid[, .N, by = list(activity_date, notation_votingId)],
-#   y = rcv_dt[, .N, by = list(activity_date, notation_votingId)], 
-#   by = c("activity_date", "notation_votingId") ) |> 
-# dplyr::mutate( has_duplicates = as.integer( N.x < N.y ) ) |> 
-# dplyr::filter(has_duplicates == 1)
-
-# rcv_dt[, .N, by = list(activity_date, notation_votingId, pers_id)][order(-N)]
-# dim(rcv_dt)
-# dim(unique(rcv_dt))
-
-
-
-
-
-
-
-
-
-
-
-
+###--------------------------------------------------------------------------###
 # Final cleaning --------------------------------------------------------------#
-# delete no variance cols
-# sapply(meps_rcv_today, function(x) sum(is.na(x)))
-# str(meps_rcv_today)
-meps_rcv_today[, c("decision_method", "type", "had_activity_type") := NULL]
-
 # Flag for ABSENT
-meps_rcv_today[, is_absent := fifelse(
-  test = pers_id %in% rcv_today$pers_id, # do we have a vote for MEP?
-  yes = 0L, no = 1L) ]
+meps_rcv_mandate[, is_absent := mean( is.na(result)),
+                 by = list(activity_date, pers_id)]
+meps_rcv_mandate[, is_absent := data.table::fifelse(
+  test = is_absent > 0, yes = 1L, no = 0L)]
 # Flag for DID NOT VOTE
-meps_rcv_today[, is_novote := fifelse(
+meps_rcv_mandate[, is_novote := fifelse(
   test = is.na(result) & is_absent == 0L, # NO VOTE but PRESENT
   yes = 1L, no = 0L) ]
 
-# Fill in cols
-cols_tofill <- c("activity_date", "activity_start_date", "activity_order",
-                 "had_decision_outcome", "decisionAboutId",
-                 "number_of_attendees", "number_of_votes_abstention",
-                 "number_of_votes_against", "number_of_votes_favor",
-                 "activity_label_en", "activity_label_fr", "activity_label_mul",
-                 "comment_en", "comment_fr", "referenceText_en", "referenceText_fr",
-                 "responsible_organization_label_en", "responsible_organization_label_fr",
-                 "headingLabel_en", "headingLabel_fr",
-                 "forms_part_of", "recorded_in_a_realization_of")
-meps_rcv_today <- meps_rcv_today |>
-  dplyr::group_by(notation_votingId) |>
+# sort table
+data.table::setkeyv(x = meps_rcv_mandate,
+                    cols = c("activity_date", "notation_votingId", "pers_id"))
+# sapply(meps_rcv_mandate, function(x) sum(is.na(x)))
+
+# Fill in cols ----------------------------------------------------------------#
+cols_tofill <- c("represents", "polgroup_id", "natparty_id")
+meps_rcv_mandate <- meps_rcv_mandate |>
+  dplyr::group_by(pers_id) |>
   tidyr::fill(tidyselect::any_of(cols_tofill),
-              .direction = "downup") |>
+              .direction = "down") |>
   dplyr::ungroup() |>
   data.table::as.data.table()
-# sapply(meps_rcv_today, function(x) sum(is.na(x))) # check
+
+
+# Fill in cols
+# cols_tofill <- c("activity_date", "activity_start_date", "activity_order",
+#                  "had_decision_outcome", "decisionAboutId",
+#                  "number_of_attendees", "number_of_votes_abstention",
+#                  "number_of_votes_against", "number_of_votes_favor",
+#                  "activity_label_en", "activity_label_fr", "activity_label_mul",
+#                  "comment_en", "comment_fr", "referenceText_en", "referenceText_fr",
+#                  "responsible_organization_label_en", "responsible_organization_label_fr",
+#                  "headingLabel_en", "headingLabel_fr",
+#                  "forms_part_of", "recorded_in_a_realization_of")
+# meps_rcv_mandate <- meps_rcv_mandate |>
+#   dplyr::group_by(notation_votingId) |>
+#   tidyr::fill(tidyselect::any_of(cols_tofill),
+#               .direction = "downup") |>
+#   dplyr::ungroup() |>
+#   data.table::as.data.table()
+# sapply(meps_rcv_mandate, function(x) sum(is.na(x))) # check
 
 # Sort data
-data.table::setkeyv(x = meps_rcv_today, cols = c("activity_start_date", "mep_name"))
-data.table::setcolorder(x = meps_rcv_today,
-                        neworder = c("activity_date", "activity_start_date", "activity_order",
-                                     "notation_votingId", "mep_name", "result",
-                                     "vote_intention", "is_absent", "is_novote",
-                                     "political_group", "country"))
+# data.table::setcolorder(x = meps_rcv_mandate,
+#                         neworder = c("activity_date", "activity_start_date", "activity_order",
+#                                      "notation_votingId", "mep_name", "result",
+#                                      "vote_intention", "is_absent", "is_novote",
+#                                      "political_group", "country"))
 
 # write data to disk ----------------------------------------------------------#
-data.table::fwrite(x = meps_rcv_today,
+data.table::fwrite(x = meps_rcv_mandate,
                    file = here::here("data_out",
-                                     paste0(today, "_meps_rcv_today.csv") ) )
+                                     paste0(today, "_meps_rcv_mandate.csv") ) )
 
