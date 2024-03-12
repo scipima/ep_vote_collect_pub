@@ -15,13 +15,12 @@ rm(list = ls())
 
 ###--------------------------------------------------------------------------###
 ## Libraries -------------------------------------------------------------------
-library(data.table)
-library(dplyr)
-library(tidyr)
-library(tidyselect)
-library(future.apply)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.apply",
+  "httr", "here", "lubridate") )
 
-# check if dir exists to dump processed files
+
+# REPO SETUP: check if dir exists to dump processed files ----------------------#
 if ( !dir.exists(here::here("data_out") ) ) {
   dir.create(here::here("data_out") ) }
 
@@ -77,7 +76,7 @@ calendar[, c("type", "id", "had_activity_type") := NULL]
 rm(api_params, list_tmp)
 
 # if no data is yet available today, but want to test the script, uncomment line below
-activity_id_today = "MTG-PL-2024-03-12"
+activity_id_today = "MTG-PL-2024-03-11"
 today <- gsub(pattern = "MTG-PL-|-", replacement = "", x = activity_id_today)
 
 
