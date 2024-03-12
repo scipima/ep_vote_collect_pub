@@ -17,10 +17,10 @@ rm(list = ls())
 ## Libraries -------------------------------------------------------------------
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.apply",
-  "httr", "here", "lubridate") )
+  "httr", "here", "lubridate", "janitor") )
 
 
-# REPO SETUP: check if dir exists to dump processed files ----------------------#
+# REPO SETUP: check if dir exists to dump processed files ---------------------#
 if ( !dir.exists(here::here("data_out") ) ) {
   dir.create(here::here("data_out") ) }
 
@@ -76,7 +76,7 @@ calendar[, c("type", "id", "had_activity_type") := NULL]
 rm(api_params, list_tmp)
 
 # if no data is yet available today, but want to test the script, uncomment line below
-activity_id_today = "MTG-PL-2024-03-11"
+# activity_id_today = "MTG-PL-2024-03-11"
 today <- gsub(pattern = "MTG-PL-|-", replacement = "", x = activity_id_today)
 
 
@@ -118,11 +118,25 @@ votes_raw <- api_list$data
 #' This means that if we merge it back with the metadata, that in turn will result in duplicate rows.
 
 #### Flat cols -----------------------------------------------------------------
-cols_tokeep <- names(votes_raw)[
-  sapply(votes_raw, class) %in% c("character", "integer")]
-votes_today <- votes_raw[, cols_tokeep] |> 
-  dplyr::distinct() # DEFENSIVE: there may be duplicate rows
-# `type` is the only col we have to unnest wider
+# sometimes the class of some cols is corrupt - fix it here
+    cols_character <- c("id", "activity_date", "activity_id", "activity_start_date",
+                        "decision_method", "had_activity_type", "had_decision_outcome",
+                        "notation_votingId", "decisionAboutId", "decisionAboutId_XMLLiteral",
+                        "decided_on_a_part_of_a_realization_of")
+    cols_integer <- c("activity_order", "number_of_attendees", "number_of_votes_abstention",
+                      "number_of_votes_against", "number_of_votes_favor")
+    # convert cols
+    votes_raw <- votes_raw |>
+        dplyr::mutate(across(.cols = tidyselect::any_of( cols_character ), as.character),
+                      across(.cols = tidyselect::any_of( cols_integer ), as.character),
+                      across(.cols = tidyselect::any_of( cols_integer ), as.integer) ) 
+    
+    # get flat cols
+    votes_today <- votes_raw[, names(votes_raw) %in% c(cols_integer, cols_character)] |> 
+        dplyr::distinct() # DEFENSIVE: there may be duplicate rows
+
+
+# `type` is the only col we have to unnest wider ----------------------------------#
 votes_today <- votes_raw |>
   dplyr::select(activity_id, type) |>
   dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
