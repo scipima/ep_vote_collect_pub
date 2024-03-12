@@ -240,6 +240,5 @@ meps_rcv_mandate <- meps_rcv_mandate |>
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_mandate,
-                   file = here::here("data_out",
-                                     paste0(today, "_meps_rcv_mandate.csv") ) )
+                   file = here::here("data_out", "meps_rcv_mandate.csv") )
 

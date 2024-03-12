@@ -106,7 +106,7 @@ meps_start_end <- hasMembership[
   dplyr::mutate(
     start_date = lubridate::as_date(start_date),
     end_date = ifelse(is.na(end_date), as.character(Sys.Date()), end_date),
-    end_date = lubridate::as_date(end_date)) |>
+    end_date = lubridate::as_datetime(end_date, tz = "Europe/Brussels") ) |>
   dplyr::left_join(
     y = hasMembership[
       !is.na(represents)
@@ -117,7 +117,7 @@ meps_start_end <- hasMembership[
     pattern = "http://publications.europa.eu/resource/authority/country/",
     replacement = "",
     x = represents) )
-
+lubridate::tz( "2022-05-18T22:00:00.000Z" )
 # Merge
 meps_dates <- merge(x = meps_data_grid, y = meps_start_end,
                     by = "pers_id", all = TRUE) |>
