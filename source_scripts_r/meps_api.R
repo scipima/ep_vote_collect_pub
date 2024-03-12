@@ -36,6 +36,10 @@ meps_mandate <- api_list$data |>
   dplyr::select(mep_name = label,
                 pers_id = identifier)
 
+# write data to disk ----------------------------------------------------------#
+data.table::fwrite(x = meps_mandate,
+                   file = here::here("data_out", "meps_mandate.csv") )                
+
 # Remove API objects --------------------------------------------------------###
 rm(api_raw, api_list)
 

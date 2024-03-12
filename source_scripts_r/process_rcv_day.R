@@ -16,13 +16,13 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
   # Votes ---------------------------------------------------------------------#
   vote_cols <- c("had_voter_abstention", "had_voter_against", "had_voter_favor")
   vote_cols <- vote_cols[vote_cols %in% names(votes_raw)]
-  
+
   rcv_vote <- lapply(
     X = setNames(object = vote_cols, nm = vote_cols),
     FUN = function(j_col) {
       votes_raw |>
         dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |>
-        dplyr::select(activity_id, tidyselect::any_of(j_col)) |>
+        dplyr::select(notation_votingId, tidyselect::any_of(j_col)) |>
         dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
         tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
     data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "result") |>
@@ -30,7 +30,7 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
     dplyr::distinct() # DEFENSIVE: there may be duplicate rows
   
   # check for duplicates again
-  df_check <- rcv_vote[, .N, by = list(pers_id, activity_id)]
+  df_check <- rcv_vote[, .N, by = list(pers_id, notation_votingId)]
   if (mean(df_check$N) > 1) {
     warning("WATCH OUT: You may have duplicate records")}
   
@@ -44,7 +44,7 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
       FUN = function(j_col) {
         votes_raw |>
           dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |>
-          dplyr::select(activity_id, tidyselect::any_of(j_col) ) |>
+          dplyr::select(notation_votingId, tidyselect::any_of(j_col) ) |>
           dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
           tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
       data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "vote_intention") |>
@@ -52,7 +52,7 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
       dplyr::distinct() # DEFENSIVE: there may be duplicate rows
     
     # check for duplicates again
-    df_check <- rcv_vote_intention[, .N, by = list(pers_id, activity_id)]
+    df_check <- rcv_vote_intention[, .N, by = list(pers_id, notation_votingId)]
     if (mean(df_check$N) > 1) {
       warning("WATCH OUT: You may have duplicate records") }
     
@@ -60,16 +60,18 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
     # !! WATCH OUT: This must be a FULL JOIN !!
     # This is because sometime MEPs don't have a vote, but do have an intention
     rcv_vote <- merge(rcv_vote, rcv_vote_intention,
-                      by = c("pers_id", "activity_id"),
+                      by = c("pers_id", "notation_votingId"),
                       all = TRUE) # !! FULL JOIN HERE - IMPORTANT !!
   }
   
   # recode & clean   -------------------------------------------------#
-  rcv_vote[, pers_id := gsub(pattern = "person/", replacement = "", x = pers_id)]
+  rcv_vote[, pers_id := as.integer(
+    gsub(pattern = "person/", replacement = "", x = pers_id))]
   rcv_vote[result == "had_voter_abstention", result := 0]
   rcv_vote[result == "had_voter_favor", result := 1]
   rcv_vote[result == "had_voter_against", result := -1]
-  rcv_vote[, result := as.integer(result)]
+  rcv_vote[, `:=`(result = as.integer(result),
+                  notation_votingId = as.integer(notation_votingId) ) ]
   
   if ( length(vote_intention_cols) > 0 ) {
     rcv_vote[vote_intention == "had_voter_intended_abstention", vote_intention := 0]

@@ -128,16 +128,17 @@ source(file = here::here("source_scripts_r", "process_rcv_day.R"))
 
 # Get Votes and RCV
 votes_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x) ) |>
-  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "activity_id")
+  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x) ) |>
-  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "activity_id")
+  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
+rcv_dt[, activity_date := as.Date(gsub(pattern = "MTG-PL-",
+                            replacement = "", x = plenary_id))][, plenary_id := NULL]
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = votes_dt,
                    file = here::here("data_out", "votes_dt.csv") )
 data.table::fwrite(x = rcv_dt,
                    file = here::here("data_out", "rcv_dt.csv") )
-
 
 
 ###--------------------------------------------------------------------------###
@@ -147,49 +148,28 @@ data.table::fwrite(x = rcv_dt,
 
 source(file = here::here("source_scripts_r", "meps_api.R"))
 
-#' Get look-up tables for MEPs' memberships.
+#' Get look-up tables for MEPs' memberships, and fetch join functions.
 
 source(file = here::here("source_scripts_r", "ep_bodies.R"))
+source(file = here::here("source_scripts_r", "join_functions.R"))
 ###--------------------------------------------------------------------------###
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-###--------------------------------------------------------------------------###
-# Get final data --------------------------------------------------------------#
-# Here it's a left-join because you have to get rid of the EV still in the `votes_today`
-rcv_today <- merge(
-  x = rcv_vote,
-  y = votes_today[grepl(pattern = "ROLL_CALL_EV", x = votes_today$decision_method),],
-  by = c("activity_id"),
-  all.x = TRUE, all.y = FALSE) |>
-  data.table::as.data.table()
-rcv_today[, c("activity_id") := NULL]
-
-# checks
-# str(rcv_today)
-# rcv_today[, .N, by = list(notation_votingId, pers_id)][order(N)] # check, must be always 1
-# sapply(rcv_today, function(x) sum(is.na(x)))
-
-# Remove API objects --------------------------------------------------------###
-rm(api_raw, api_list, list_tmp, df_check)
-
 
 
 ###--------------------------------------------------------------------------###
 ## Merge RCV with MEPs ---------------------------------------------------------
+# read in file if not present already
+if ( !exists("meps_dates_ids") ) {
+  meps_dates_ids <- data.table::fread(file = here::here(
+    "data_out", "meps_dates_ids.csv") ) }
+
+# Create a grid with all MEPs who SHOULD have been present
+meps_rcv_grid <- merge(
+  x = meps_dates_ids[, list(activity_date, pers_id)],
+  y = unique(rcv_dt[,  list(activity_date, notation_votingId) ] ) ,
+  by = "activity_date", all = TRUE, allow.cartesian = TRUE) |>
+  dplyr::left_join(y = meps_dates_ids,
+    by = c("pers_id", "activity_date") )
+
 
 # merge grid with RCV data
 meps_rcv_today <- merge(x = meps_rcv_grid,
