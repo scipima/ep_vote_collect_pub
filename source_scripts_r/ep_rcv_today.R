@@ -81,7 +81,7 @@ calendar[, c("type", "id", "had_activity_type") := NULL]
 rm(api_params, list_tmp)
 
 # if no data is yet available today, but want to test the script, uncomment line below
-# activity_id_today = "MTG-PL-2024-02-27"
+activity_id_today = "MTG-PL-2024-03-12"
 today <- gsub(pattern = "MTG-PL-|-", replacement = "", x = activity_id_today)
 
 
