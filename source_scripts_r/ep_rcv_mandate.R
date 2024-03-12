@@ -140,7 +140,9 @@ data.table::fwrite(x = votes_dt,
                    file = here::here("data_out", "votes_dt.csv") )
 data.table::fwrite(x = rcv_dt,
                    file = here::here("data_out", "rcv_dt.csv") )
-
+                   
+# remove objects --------------------------------------------------------------#                   
+rm(vote_list_tmp)
 
 ###--------------------------------------------------------------------------###
 # Source script ---------------------------------------------------------------#
