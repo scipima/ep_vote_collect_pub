@@ -15,11 +15,9 @@
 
 ###--------------------------------------------------------------------------###
 ## Libraries -------------------------------------------------------------------
-library(data.table)
-library(dplyr)
-library(tidyr)
-library(tidyselect)
-library(future.apply)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.apply",
+  "httr", "here", "lubridate", "janitor", "jsonlite") )
 
 # check if dir exists to dump processed files
 if ( !dir.exists(here::here("data_out") ) ) {
@@ -132,7 +130,10 @@ votes_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x) ) |>
 rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x) ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 rcv_dt[, activity_date := as.Date(gsub(pattern = "MTG-PL-",
-                            replacement = "", x = plenary_id))][, plenary_id := NULL]
+                            replacement = "", x = plenary_id))]
+rcv_dt[, plenary_id := NULL]
+# sapply(rcv_dt, function(x) sum(is.na(x))) # check
+
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = votes_dt,
@@ -147,8 +148,9 @@ data.table::fwrite(x = rcv_dt,
 #' Get clean data on MEPs' membership and mandate duration.
 
 source(file = here::here("source_scripts_r", "meps_api.R"))
+# sapply(meps_dates_ids, function(x) sum(is.na(x))) # check
 
-#' Get look-up tables for MEPs' memberships, and fetch join functions.
+#' Get look-up tables for MEPs' memberships, and fetch `join_functions.R`
 
 source(file = here::here("source_scripts_r", "ep_bodies.R"))
 source(file = here::here("source_scripts_r", "join_functions.R"))
@@ -169,17 +171,43 @@ meps_rcv_grid <- merge(
   by = "activity_date", all = TRUE, allow.cartesian = TRUE) |>
   dplyr::left_join(y = meps_dates_ids,
     by = c("pers_id", "activity_date") )
-
+meps_rcv_grid[, activity_date := as.Date(activity_date)]    
+dim(meps_rcv_grid)
+sapply(meps_rcv_grid, function(x) sum(is.na(x)))
 
 # merge grid with RCV data
-meps_rcv_today <- merge(x = meps_rcv_grid,
-                        y = rcv_today,
-                        by = c("pers_id", "notation_votingId"), all = TRUE) |>
+meps_rcv_mandate <- merge(x = meps_rcv_grid, y = rcv_dt,
+  by = c("activity_date", "notation_votingId", "pers_id"), 
+  all = TRUE) |>
   data.table::as.data.table()
 
 # check
-if ( nrow(meps_rcv_today) > nrow(meps_rcv_grid) ) {
+if ( nrow(meps_rcv_mandate) > nrow(meps_rcv_grid) ) {
   warning("WATCH OUT: You may have duplicate records")}
+
+
+
+
+# p = merge(
+#   x = meps_rcv_grid[, .N, by = list(activity_date, notation_votingId)],
+#   y = rcv_dt[, .N, by = list(activity_date, notation_votingId)], 
+#   by = c("activity_date", "notation_votingId") ) |> 
+# dplyr::mutate( has_duplicates = as.integer( N.x < N.y ) ) |> 
+# dplyr::filter(has_duplicates == 1)
+
+# rcv_dt[, .N, by = list(activity_date, notation_votingId, pers_id)][order(-N)]
+# dim(rcv_dt)
+# dim(unique(rcv_dt))
+
+
+
+
+
+
+
+
+
+
 
 
 # Final cleaning --------------------------------------------------------------#

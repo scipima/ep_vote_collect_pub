@@ -29,7 +29,7 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
     dplyr::rename(pers_id = had_voter_abstention) |>
     dplyr::distinct() # DEFENSIVE: there may be duplicate rows
   
-  # check for duplicates again
+  # check for duplicates
   df_check <- rcv_vote[, .N, by = list(pers_id, notation_votingId)]
   if (mean(df_check$N) > 1) {
     warning("WATCH OUT: You may have duplicate records")}
@@ -51,7 +51,7 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
       dplyr::rename(pers_id = 3) |>
       dplyr::distinct() # DEFENSIVE: there may be duplicate rows
     
-    # check for duplicates again
+    # check for duplicates
     df_check <- rcv_vote_intention[, .N, by = list(pers_id, notation_votingId)]
     if (mean(df_check$N) > 1) {
       warning("WATCH OUT: You may have duplicate records") }
@@ -62,6 +62,10 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
     rcv_vote <- merge(rcv_vote, rcv_vote_intention,
                       by = c("pers_id", "notation_votingId"),
                       all = TRUE) # !! FULL JOIN HERE - IMPORTANT !!
+      # check for duplicates again
+  df_check <- rcv_vote[, .N, by = list(pers_id, notation_votingId)]
+  if (mean(df_check$N) > 1) {
+    warning("WATCH OUT: You may have duplicate records")}                  
   }
   
   # recode & clean   -------------------------------------------------#
