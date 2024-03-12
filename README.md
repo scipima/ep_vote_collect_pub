@@ -9,7 +9,7 @@ Second, the repo also offers the codes to download and put in tabular format all
 To collect and clean the daily votes in the EP, just 2 of the files in the repo are necessary:
 
 * `ep_rcv_today.R` collects all relevant data to today's Plenary Session. 
-More precisely, it starts by selecting the last Session from the calendar.
+More precisely, it starts by selecting the last Session from the calendar (in chronological order).
 Then grabs and process all the voting data for the current day. 
 Finally it merges just the RCV data with current MEPs in the House. 
 At the end of this process, 2 files are deposited in the `data_out` folder: `meps_rcv_today.csv` and `votes_today.csv`.
@@ -33,25 +33,22 @@ It then combines these pieces of information into a single dataframe, `meps_date
 Bear in mind that the user should always double check these, as mistakes at data entry stage tend to occur.
 This script spits out 3 tables, `national_parties.csv`, `political_groups.csv`, and `body_id_full.csv`.
 
- 
-
-
 
 ## Data
 We extract all data from the [EP Open Data API](https://data.europarl.europa.eu/en/developer-corner/opendata-api).
-While the purpose of this repo is just to test for daily data, it can be easily tweaked to gather more Plenary Sessions, and potentially entire mandates (as long as access is granted through the API). 
+While the purpose of this repo is just to test the collection of daily data, it can be tweaked to gather more Plenary Sessions, and potentially entire mandates (as long as access is granted through the API). 
 
 
 ## Known issues
-The ultimate resource for Votes and RCV should be the EP finalised minutes.
+The ultimate resource for Votes and RCV should be the [EP finalised minutes](https://www.europarl.europa.eu/RegistreWeb/search/simpleSearchHome.htm?types=PPVD&sortAndOrder=DATE_DOCU_DESC).
 Here instead we grab all votes on the same day.
 This is prone to *error* and/or *failure*.
 So, the user is strongly encouraged to always check the daily data against the official records. 
 
-Failure, as the data may not have hit the server yet, and thus our calls go empty.
+*Failure*, as the data may not have hit the server yet, and thus our calls go empty.
 If that is the case, the code breaks and an error is thrown.
 
-Error, as the day may be messy.
+*Error*, as the day may be messy.
 For instance, many language translations only accumulates over time.
 Usually the only ones readily available are the `mul` (for multilingual, i.e. French), or `.fr` (for French).
 
@@ -61,5 +58,3 @@ Usually the only ones readily available are the `mul` (for multilingual, i.e. Fr
 Further, there may be duplicate lines. 
 MEPs are also given a time frame in which they can report that they pressed the wrong button (this is recorded under `intentions`).
 In addition, more columns may be made available over time.
-
-
