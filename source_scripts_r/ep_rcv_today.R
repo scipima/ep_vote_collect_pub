@@ -39,14 +39,10 @@ api_params <- paste0("/meetings?year=", years,
                      "&format=application%2Fld%2Bjson&offset=0")
 
 # Function ------------------------------------------------------------------###
-# list_tmp <- vector(mode = "list", length = length(api_params))
 get_docs_year <- function(links = api_params) {
   future.apply::future_lapply(
     X = links, FUN = function(param) {
-      # for (param in seq_along(api_params)) {  # UNCOMMENT TO TEST LOOP
-      # api_url <- paste0(api_base, api_params[param])  # UNCOMMENT TO TEST LOOP
       api_url <- paste0(api_base, param)
-      
       # print(api_url)
       api_raw <- httr::GET(api_url)
       api_list <- jsonlite::fromJSON(
@@ -54,7 +50,6 @@ get_docs_year <- function(links = api_params) {
         flatten = TRUE)
       # extract info
       docs_year <- api_list$data
-      # list[[param]] <- docs_year # UNCOMMENT TO TEST LOOP
       return(docs_year) } ) }
 
 # parallelisation -----------------------------------------------------------###
@@ -66,7 +61,8 @@ future::plan(strategy = sequential) # revert to normal
 names(list_tmp) <- years # name list items
 calendar <- data.table::rbindlist(list_tmp,
                                   use.names=TRUE, fill=TRUE, idcol="year")
-# sapply(plenary_documents, function(x) sum(is.na(x)))
+# sapply(plenary_documents, function(x) sum(is.na(x))) # check NAs
+
 # clean data
 calendar[, `:=`(year = as.integer(year),
                 date = as.Date(gsub(pattern = "eli/dl/event/MTG-PL-",
@@ -115,10 +111,12 @@ votes_raw <- api_list$data
 ### Process data ---------------------------------------------------------------
 
 #' This is a nested data.frame, with several classes of cols.
-#' We tackled the flat part first, which gives us the RCV metadata.
+#' We tackle the flat part first, which gives us the RCV metadata.
 #' Then we extract and append all votes.
 #' Then we grab all the dataframe-cols, unnest them, and keep only 3 languages (if available).
 #' Finally, we grab the list-cols and unnest them.
+#' For this latter class of cols, unnesting them results in a long data.frame. 
+#' This means that if we merge it back with the metadata, that in turn will result in duplicate rows.
 
 #### Flat cols -----------------------------------------------------------------
 cols_tokeep <- names(votes_raw)[
