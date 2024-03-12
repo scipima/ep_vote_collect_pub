@@ -31,8 +31,8 @@
               "r.plot.useHttpgd": true,
               //
               // turn these two on with Radian
-              //"r.rterm.linux": "/usr/local/bin/radian",
-              //"r.bracketedPaste": true,
+              "r.rterm.linux": "/usr/local/bin/radian",
+              "r.bracketedPaste": true,
               //
               // some guidance for the editor on R files
               "[r]": {
