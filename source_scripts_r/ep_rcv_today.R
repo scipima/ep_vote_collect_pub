@@ -176,32 +176,35 @@ if (mean(df_check$N) > 1) {
 vote_intention_cols <- c("had_voter_intended_abstention", "had_voter_intended_against",
                          "had_voter_intended_favor")
 vote_intention_cols <- vote_intention_cols[vote_intention_cols %in% names(votes_raw)]
-rcv_vote_intention <- lapply(
-  X = setNames(object = vote_intention_cols, nm = vote_intention_cols),
-  FUN = function(j_col) {
-    votes_raw |>
-      dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |> 
-      dplyr::select(activity_id, tidyselect::any_of(j_col) ) |>
-      dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-      tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
-  data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "vote_intention") |>
-  dplyr::rename(pers_id = 3) |> 
-  dplyr::distinct() # DEFENSIVE: there may be duplicate rows
+ if ( length(vote_intention_cols) > 0 ) {
+    rcv_vote_intention <- lapply(
+      X = setNames(object = vote_intention_cols, nm = vote_intention_cols),
+      FUN = function(j_col) {
+        votes_raw |>
+          dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |>
+          dplyr::select(notation_votingId, tidyselect::any_of(j_col) ) |>
+          dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
+          tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
+      data.table::rbindlist(use.names = FALSE, fill = FALSE, idcol = "vote_intention") |>
+      dplyr::rename(pers_id = 3) |>
+      dplyr::distinct() # DEFENSIVE: there may be duplicate rows
 
-# check for duplicates again
-df_check <- rcv_vote[, .N, by = list(pers_id, activity_id)]
+    # check for duplicates
+    df_check <- rcv_vote_intention[, .N, by = list(pers_id, notation_votingId)]
+    if (mean(df_check$N) > 1) {
+      warning("WATCH OUT: You may have duplicate records") }
 
-if (mean(df_check$N) > 1) {
-  warning("WATCH OUT: You may have duplicate records")}
-
-# Merge vote with intentions  -------------------------------------------------#
-# !! WATCH OUT: This must be a FULL JOIN !!
-# This is because sometime MEPs don't have a vote, but do have an intention
-rcv_vote <- merge(rcv_vote, rcv_vote_intention,
-                  by = c("pers_id", "activity_id"), 
-                  all = TRUE) |> # !! FULL JOIN HERE - IMPORTANT !!
-  dplyr::mutate(pers_id = gsub(pattern = "person/", replacement = "", x = pers_id)) |> 
-  data.table::as.data.table()
+    # Merge vote with intentions  ---------------------------------------------#
+    # !! WATCH OUT: This must be a FULL JOIN !!
+    # This is because sometime MEPs don't have a vote, but do have an intention
+    rcv_vote <- merge(rcv_vote, rcv_vote_intention,
+                      by = c("pers_id", "notation_votingId"),
+                      all = TRUE) # !! FULL JOIN HERE - IMPORTANT !!
+    # check for duplicates again
+    df_check <- rcv_vote[, .N, by = list(pers_id, notation_votingId)]
+    if (mean(df_check$N) > 1) {
+      warning("WATCH OUT: You may have duplicate records")}
+  }
 
 
 #### Tackle df-cols ------------------------------------------------------------
@@ -308,10 +311,13 @@ rcv_today[result == "had_voter_abstention", result := 0]
 rcv_today[result == "had_voter_favor", result := 1]
 rcv_today[result == "had_voter_against", result := -1]
 rcv_today[, result := as.integer(result)]
-rcv_today[vote_intention == "had_voter_intended_abstention", vote_intention := 0]
-rcv_today[vote_intention == "had_voter_intended_favor", vote_intention := 1]
-rcv_today[vote_intention == "had_voter_intended_against", vote_intention := -1]
-rcv_today[, vote_intention := as.integer(vote_intention)]
+
+  if ( length(vote_intention_cols) > 0 ) {
+    rcv_vote[vote_intention == "had_voter_intended_abstention", vote_intention := 0]
+    rcv_vote[vote_intention == "had_voter_intended_favor", vote_intention := 1]
+    rcv_vote[vote_intention == "had_voter_intended_against", vote_intention := -1]
+    rcv_vote[, vote_intention := as.integer(vote_intention)] }
+
 # checks
 # str(rcv_today)
 # rcv_today[, .N, by = list(notation_votingId, pers_id)][order(N)] # check, must be always 1
@@ -350,8 +356,9 @@ meps_rcv_grid <- tidyr::expand_grid(
 # merge grid with RCV data
 meps_rcv_today <- merge(x = meps_rcv_grid,
                         y = rcv_today,
-                        by = c("pers_id", "notation_votingId"), all = TRUE) |>
-  data.table::as.data.table()
+                        by = c("pers_id", "notation_votingId"),
+                        all = TRUE) |>
+  data.table::as.data.table() 
 
 # check
 if ( nrow(meps_rcv_today) > nrow(meps_rcv_grid) ) {
@@ -395,9 +402,7 @@ meps_rcv_today <- meps_rcv_today |>
 data.table::setkeyv(x = meps_rcv_today, cols = c("activity_start_date", "mep_name"))
 data.table::setcolorder(x = meps_rcv_today, 
                         neworder = c("activity_date", "activity_start_date", "activity_order",
-                                     "notation_votingId", "mep_name", "result", 
-                                     "vote_intention", "is_absent", "is_novote",
-                                     "political_group", "country"))
+                                     "notation_votingId", "mep_name", "political_group", "country"))
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_today,
