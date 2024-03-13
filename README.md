@@ -24,14 +24,21 @@ To collect and clean all votes during this mandate, several files must be execut
 It first gegts the list of all `meetings`.
 Then gets all available data from the EP API on these meetings, namely votes.
 It calls two functions to clean the data, `process_vote_day.R` and `process_rcv_day.R`, which respectively deal with *votes* and *rcv* (unsurprisingly ...).
-Having cleaned the data, the scripts then saves them into 2 files, `votes_dt.csv` (a rather wide files with as many rows as votes on that day), and `rcv_dt.csv` (a very long file containing all RCVs). 
+Having cleaned the data, the scripts then saves them into 2 files, `votes_dt.csv` (a `wide` files with as many rows as votes on that day), and `rcv_dt.csv` (a very `long` file containing all RCVs). 
 * Once `ep_rcv_mandate.R` has collected and cleaned the voting data, it has to combine it with information on the MEPs.
 The `meps_api.R` calls the EP API to first download the full list of MEPs during the 9th mandate, and then grab all the supplementary information on each of these MEPs.
 In particular, it grabs the `country`, the `national party`, the `political group`, and then the duration of the `mandates`.
 It then combines these pieces of information into a single dataframe, `meps_dates_ids.csv`, which lists all the MEPs who have transited through the EP, with each MEP listed for all the dates in which he/she should have been present in the House, as well as his/her `membership`.
 * National parties and EP Political Groups feature as integers in the data, so we also have to execute another script - `ep_bodies.R` - to grab the dictionaries for these unique ids.
-Bear in mind that the user should always double check these, as mistakes at data entry stage tend to occur.
+Bear in mind that the user should always double check these, as mistakes at data entry stage tend to occur, or data are simply missing.
 This script spits out 3 tables, `national_parties.csv`, `political_groups.csv`, and `body_id_full.csv`.
+* The last code chunks in `ep_rcv_mandate.R` merges several of these different datasets into a single one.
+It creates a grid based on the unique combinations of the RCV unique identifiers and the dates, and then merges it with `meps_dates_ids.csv`.
+In that way, we create a table where not only EP-registered votes are present, but also the absence and no-vote (i.e. a MEP who is present in the House but decides not to cast a specific vote).
+After a bit more cleaning, we save `meps_rcv_mandate.csv` to disk.
+
+As this file accumulates over time and is likely to get large, I decided not to merge it the `votes_dt.csv`, which contains all the metadata.
+The user can easily achieve that by left-merging the `meps_rcv_mandate.csv` with `votes_dt.csv` by the shared column, namely `notation_votingId`.
 
 
 ## Data
@@ -51,10 +58,6 @@ If that is the case, the code breaks and an error is thrown.
 *Error*, as the day may be messy.
 For instance, many language translations only accumulates over time.
 Usually the only ones readily available are the `mul` (for multilingual, i.e. French), or `.fr` (for French).
-
-## EP Votes during this Mandate
-
-
 Further, there may be duplicate lines. 
 MEPs are also given a time frame in which they can report that they pressed the wrong button (this is recorded under `intentions`).
 In addition, more columns may be made available over time.
