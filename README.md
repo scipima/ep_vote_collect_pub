@@ -61,3 +61,8 @@ Usually the only ones readily available are the `mul` (for multilingual, i.e. Fr
 Further, there may be duplicate lines. 
 MEPs are also given a time frame in which they can report that they pressed the wrong button (this is recorded under `intentions`).
 In addition, more columns may be made available over time.
+
+## Execution
+The repo hosts a container (`.devcontainer`) which can be deployed through GitHub Codespaces.
+For more info, please check [r2u for Codespaces](https://eddelbuettel.github.io/r2u/vignettes/Codespaces/).
+In short, a free Codespace account comes with the GitHub registration, within certain constraints (see [here](https://github.com/features/codespaces) for more details)
