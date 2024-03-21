@@ -29,9 +29,8 @@ if ( !dir.exists(here::here("data_out") ) ) {
 # EXAMPLE: https://data.europarl.europa.eu/api/v1/plenary-documents?year=2016&format=application%2Fld%2Bjson&offset=0
 # create parameters to loop over
 api_base <- "https://data.europarl.europa.eu/api/v1"
-years <- 2019 : data.table::year(Sys.Date()) # currently, API only has data since 2023
-# If more years are needed, change the line above to:
-# years <- 2016 : data.table::year(Sys.Date())
+years <- 2019 : data.table::year(Sys.Date()) 
+
 # grid to loop over
 api_params <- paste0(api_base, "/meetings?year=", years,
                      "&format=application%2Fld%2Bjson&offset=0")
@@ -55,7 +54,8 @@ json_list <- lapply(
       api_list <- jsonlite::fromJSON(
         rawToChar(i_json$content))
       # # extract info
-      return(api_list$data) } } )
+      return(api_list$data) } 
+      } )
 
 
 # append data ---------------------------------------------------------------###
