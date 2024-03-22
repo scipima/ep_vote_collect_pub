@@ -121,6 +121,7 @@ rm(url_list_tmp)
 #' These 2 functions clean, respectively, the vote data and the RCV data.
 
 source(file = here::here("source_scripts_r", "process_vote_day.R"))
+source(file = here::here("source_scripts_r", "process_list_longdf.R"))
 source(file = here::here("source_scripts_r", "process_rcv_day.R"))
 ###--------------------------------------------------------------------------###
 
