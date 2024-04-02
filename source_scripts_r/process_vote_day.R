@@ -12,7 +12,11 @@
 # get rid of NULL items in list
 vote_list_tmp <- vote_list_tmp[!sapply(X = vote_list_tmp, is.null)]
 
-process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
+process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2022-05-19"]]) {
+
+# for (i_vote in seq_along(vote_list_tmp)){
+#     votes_raw = vote_list_tmp[[i_vote]]
+    print(unique(votes_raw$activity_date))
     
     #### Flat cols -------------------------------------------------------------
     # sometimes the class of some cols is corrupt - fix it here
@@ -22,6 +26,9 @@ process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
                         "decided_on_a_part_of_a_realization_of")
     cols_integer <- c("activity_order", "number_of_attendees", "number_of_votes_abstention",
                       "number_of_votes_against", "number_of_votes_favor")
+    # sometimes `type` is of class character
+    if (class(votes_raw$type) == "character") {
+        cols_character <- c(cols_character, "type") } 
     # convert cols
     votes_raw <- votes_raw |>
         dplyr::mutate(across(.cols = tidyselect::any_of( cols_character ), as.character),
@@ -31,20 +38,21 @@ process_vote_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
     # get flat cols
     votes_today <- votes_raw[, names(votes_raw) %in% c(cols_integer, cols_character)] |> 
         dplyr::distinct() # DEFENSIVE: there may be duplicate rows
-    
-    # `type` is the only col we have to unnest wider
-    votes_today <- votes_raw |>
-        dplyr::select(activity_id, type) |>
-        dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
-        tidyr::unnest_wider(type, names_sep = "_") |>
-        dplyr::mutate(type = ifelse(
-            test = type_1 %in% "Decision",
-            yes = paste(type_1, type_2, sep = "_"),
-            no = paste(type_2, type_1, sep = "_") ) ) |>
-        dplyr::select(-starts_with("type_")) |>
-        dplyr::right_join(
-            y = votes_today,
-            by = "activity_id")
+
+    if (class(votes_raw$type) == "list") {
+        # `type` is the only col we have to unnest wider that is really a character
+        votes_today <- votes_raw |>
+            dplyr::select(activity_id, type) |>
+            dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
+            tidyr::unnest_wider(type, names_sep = "_") |>
+            dplyr::mutate(type = ifelse(
+                test = type_1 %in% "Decision",
+                yes = paste(type_1, type_2, sep = "_"),
+                no = paste(type_2, type_1, sep = "_") ) ) |>
+            dplyr::select(-starts_with("type_")) |>
+            dplyr::right_join(
+                y = votes_today,
+                by = "activity_id") }
     
     #### Tackle df-cols --------------------------------------------------------
     cols_dataframe <- names(votes_raw)[

@@ -19,15 +19,24 @@ library(future.apply)
 ## Data -------------------------------------------------------------------
 meps_dates_ids <- data.table::fread(here::here("data_out", "meps_dates_ids.csv"))
 
+# bodies_id <- hasMembership |>
+#   dplyr::mutate(start_date = lubridate::as_datetime(member_during_dcat_start_date,
+#                                                     tz = "Europe/Brussels"),
+#                 organization = as.integer( gsub(
+#                   pattern = "org/", replacement = "", x = organization) ) ) |> 
+#   dplyr::filter(start_date > as.Date("2019-07-01")) |> 
+#   dplyr::pull(organization) |> 
+#   na.omit() 
+
 # Grab vector of bodies in the current data
-bodies_id <- na.omit( c( unique(meps_dates_ids$polgroup_id), 
+bodies_id <- na.omit( c( unique(meps_dates_ids$polgroup_id),
                          unique( meps_dates_ids$natparty_id) ) )
 # remove object
 rm(meps_dates_ids)
 
 # grid to loop over
 api_params <- paste0("https://data.europarl.europa.eu/api/v1/corporate-bodies/", 
-                     bodies_id,
+                     sort(unique(bodies_id)),
                      "?format=application%2Fld%2Bjson&json-layout=framed")
 
 # Function ------------------------------------------------------------------###

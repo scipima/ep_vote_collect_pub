@@ -84,7 +84,9 @@ hasMembership <- lapply(
                     hasMembership) |>
       tidyr::unnest(hasMembership) } ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE) |>
-  dplyr::select(-contactPoint)
+  dplyr::select(-contactPoint) |> 
+  janitor::clean_names()
+# unique(hasMembership$membership_classification)
 
 # Create grid of MEPs and Dates -----------------------------------------------#
 # Read in data
@@ -102,9 +104,10 @@ meps_data_grid <- expand.grid(
 meps_start_end <- hasMembership[
   grepl("member_ep", x = role, ignore.case = TRUE)
   & organization == "org/ep-9",
-  list(pers_id, start_date = memberDuring.startDate, end_date = memberDuring.endDate)] |>
+  list(pers_id, start_date = member_during_dcat_start_date, 
+       end_date = member_during_dcat_end_date)] |>
   dplyr::mutate(
-    start_date = lubridate::as_date(start_date),
+    start_date = lubridate::as_datetime(start_date, tz = "Europe/Brussels"),
     end_date = ifelse(is.na(end_date), as.character(Sys.Date()), end_date),
     end_date = lubridate::as_datetime(end_date, tz = "Europe/Brussels") ) |>
   dplyr::left_join(
@@ -117,7 +120,7 @@ meps_start_end <- hasMembership[
     pattern = "http://publications.europa.eu/resource/authority/country/",
     replacement = "",
     x = represents) )
-lubridate::tz( "2022-05-18T22:00:00.000Z" )
+
 # Merge
 meps_dates <- merge(x = meps_data_grid, y = meps_start_end,
                     by = "pers_id", all = TRUE) |>
@@ -136,9 +139,9 @@ meps_dates[, c("to_keep", "start_date", "end_date") := NULL]
 ###--------------------------------------------------------------------------###
 ### Extract political groups ---------------------------------------------------
 meps_polgroups <- hasMembership[
-  grepl("ep_group", x = membershipClassification, ignore.case = TRUE),
+  grepl("ep_group", x = membership_classification, ignore.case = TRUE),
   list(pers_id, polgroup_id = organization,
-       start_date = memberDuring.startDate, end_date = memberDuring.endDate)] |>
+       start_date = member_during_dcat_start_date, end_date = member_during_dcat_end_date)] |>
   dplyr::mutate(
     polgroup_id = as.integer( gsub(pattern = "org/", replacement = "", x = polgroup_id) ),
     start_date = lubridate::as_date(start_date),
@@ -165,9 +168,9 @@ meps_dates_polgroups[, c("to_keep", "represents", "start_date", "end_date") := N
 ###--------------------------------------------------------------------------###
 ### Extract national parties groups --------------------------------------------
 meps_natparties <- hasMembership[
-  grepl("np", x = membershipClassification, ignore.case = TRUE),
+  grepl("np", x = membership_classification, ignore.case = TRUE),
   list(pers_id, natparty_id = organization,
-       start_date = memberDuring.startDate, end_date = memberDuring.endDate)] |>
+       start_date = member_during_dcat_start_date, end_date = member_during_dcat_end_date)] |>
   dplyr::mutate(
     natparty_id = as.integer( gsub(pattern = "org/", replacement = "", x = natparty_id) ),
     start_date = lubridate::as_date(start_date),
