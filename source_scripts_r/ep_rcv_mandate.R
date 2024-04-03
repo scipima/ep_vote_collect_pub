@@ -135,21 +135,31 @@ rcv_dt[, activity_date := as.Date(gsub(pattern = "MTG-PL-",
 rcv_dt[, plenary_id := NULL]
 # sapply(rcv_dt, function(x) sum(is.na(x))) # check
 
-# Get DF in list-cols
-decided_on_a_realization_of <- lapply(
-  X = vote_list_tmp, 
-  FUN = function(x) process_decided_on_a_realization_of(x) ) |>
-  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
-motivated_by <- lapply(
-  X = vote_list_tmp, 
-  FUN = function(x) process_was_motivated_by(x) ) |>
-  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
-
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = votes_dt,
                    file = here::here("data_out", "votes_dt.csv") )
 data.table::fwrite(x = rcv_dt,
                    file = here::here("data_out", "rcv_dt.csv") )
+
+
+###--------------------------------------------------------------------------###
+# Get DF in list-cols ---------------------------------------------------------#
+# process_decided_on_a_realization_of
+decided_on_a_realization_of <- lapply(
+  X = vote_list_tmp, 
+  FUN = function(x) process_decided_on_a_realization_of(x) ) |>
+  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
+data.table::fwrite(x = decided_on_a_realization_of,
+                   file = here::here("data_out", "decided_on_a_realization_of.csv") )
+
+# process_was_motivated_by
+motivated_by <- lapply(
+  X = vote_list_tmp, 
+  FUN = function(x) process_was_motivated_by(x) ) |>
+  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
+data.table::fwrite(x = motivated_by,
+                   file = here::here("data_out", "motivated_by.csv") )
+
 
 # remove objects --------------------------------------------------------------#
 rm(vote_list_tmp)

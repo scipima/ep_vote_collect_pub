@@ -47,6 +47,11 @@ While the purpose of this repo is just to test the collection of daily data, it 
 
 
 ## Known issues
+
+**AS of end of March 2024, the EP has started to transition to v2 of the API**. 
+**Many features used in these scripts - e.g. MEPs' membership of national parties - are currently unavailable.**
+**I'll update the repo once the data structure consolidates.**
+
 The ultimate resource for Votes and RCV should be the [EP finalised minutes](https://www.europarl.europa.eu/RegistreWeb/search/simpleSearchHome.htm?types=PPVD&sortAndOrder=DATE_DOCU_DESC).
 Here instead we grab all votes on the same day.
 This is prone to *error* and/or *failure*.

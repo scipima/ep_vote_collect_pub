@@ -23,14 +23,9 @@ api_url <- "https://data.europarl.europa.eu/api/v1/corporate-bodies?format=appli
 api_raw <- httr::GET(api_url)
 api_list <- jsonlite::fromJSON(rawToChar(api_raw$content), flatten = TRUE)
 bodies_full <- api_list$data 
-bodies_full |>
-  dplyr::select(id, type) |> 
-  tidyr::unnest(type) |> 
-  dplyr::count(type)
 
 # Grab vector of bodies in the current data
-bodies_id <- na.omit( c( unique(meps_dates_ids$polgroup_id),
-                         unique( meps_dates_ids$natparty_id) ) )
+bodies_id <- unique(bodies_full$identifier)
 # remove object
 rm(meps_dates_ids)
 
