@@ -29,7 +29,7 @@ if ( !dir.exists(here::here("data_out") ) ) {
 # EXAMPLE: https://data.europarl.europa.eu/api/v1/meetings?year=2022&format=application%2Fld%2Bjson&offset=0
 # create parameters to loop over
 api_base <- "https://data.europarl.europa.eu/api/v1"
-years <- 2019 : data.table::year(Sys.Date()) 
+years <- 2019 : data.table::year(Sys.Date())
 
 # grid to loop over
 api_params <- paste0(api_base, "/meetings?year=", years,
@@ -44,7 +44,7 @@ get_meetings_json <- lapply(
     return(api_raw) } )
 names(get_meetings_json) <- years
 
-# get data from JSON -----------------------------------------------------------#
+# get data from JSON ----------------------------------------------------------#
 json_list <- lapply(
   X = get_meetings_json,
   function(i_json) {
@@ -54,7 +54,7 @@ json_list <- lapply(
       api_list <- jsonlite::fromJSON(
         rawToChar(i_json$content))
       # # extract info
-      return(api_list$data) } 
+      return(api_list$data) }
   } )
 
 
@@ -146,7 +146,7 @@ data.table::fwrite(x = rcv_dt,
 # Get DF in list-cols ---------------------------------------------------------#
 # process_decided_on_a_realization_of
 decided_on_a_realization_of <- lapply(
-  X = vote_list_tmp, 
+  X = vote_list_tmp,
   FUN = function(x) process_decided_on_a_realization_of(x) ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 data.table::fwrite(x = decided_on_a_realization_of,
@@ -154,7 +154,7 @@ data.table::fwrite(x = decided_on_a_realization_of,
 
 # process_was_motivated_by
 motivated_by <- lapply(
-  X = vote_list_tmp, 
+  X = vote_list_tmp,
   FUN = function(x) process_was_motivated_by(x) ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 data.table::fwrite(x = motivated_by,
@@ -197,11 +197,17 @@ meps_rcv_grid[, activity_date := as.Date(activity_date)]
 # dim(meps_rcv_grid)
 # sapply(meps_rcv_grid, function(x) sum(is.na(x)))
 
+
+# data entry mistake
+rcv_dt[pers_id == 6840L, pers_id := 197443L]
+
 # merge grid with RCV data
 meps_rcv_mandate <- merge(x = meps_rcv_grid, y = rcv_dt,
                           by = c("activity_date", "notation_votingId", "pers_id"),
                           all = TRUE) |>
   data.table::as.data.table()
+# sapply(meps_rcv_mandate, function(x) sum(is.na(x)))
+
 
 # check
 if ( nrow(meps_rcv_mandate) > nrow(meps_rcv_grid) ) {
@@ -234,33 +240,7 @@ meps_rcv_mandate <- meps_rcv_mandate |>
   dplyr::ungroup() |>
   data.table::as.data.table()
 
-
-# Fill in cols
-# cols_tofill <- c("activity_date", "activity_start_date", "activity_order",
-#                  "had_decision_outcome", "decisionAboutId",
-#                  "number_of_attendees", "number_of_votes_abstention",
-#                  "number_of_votes_against", "number_of_votes_favor",
-#                  "activity_label_en", "activity_label_fr", "activity_label_mul",
-#                  "comment_en", "comment_fr", "referenceText_en", "referenceText_fr",
-#                  "responsible_organization_label_en", "responsible_organization_label_fr",
-#                  "headingLabel_en", "headingLabel_fr",
-#                  "forms_part_of", "recorded_in_a_realization_of")
-# meps_rcv_mandate <- meps_rcv_mandate |>
-#   dplyr::group_by(notation_votingId) |>
-#   tidyr::fill(tidyselect::any_of(cols_tofill),
-#               .direction = "downup") |>
-#   dplyr::ungroup() |>
-#   data.table::as.data.table()
-# sapply(meps_rcv_mandate, function(x) sum(is.na(x))) # check
-
-# Sort data
-# data.table::setcolorder(x = meps_rcv_mandate,
-#                         neworder = c("activity_date", "activity_start_date", "activity_order",
-#                                      "notation_votingId", "mep_name", "result",
-#                                      "vote_intention", "is_absent", "is_novote",
-#                                      "political_group", "country"))
-
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_mandate,
-                   file = here::here("data_out", "meps_rcv_mandate.csv") )
+                   file = here::here("data_out", "meps_rcv_mandate.csv"), verbose = TRUE)
 

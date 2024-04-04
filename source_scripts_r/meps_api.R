@@ -34,11 +34,12 @@ api_list <- jsonlite::fromJSON(
 meps_mandate <- api_list$data |>
   janitor::clean_names() |>
   dplyr::select(mep_name = label,
-                pers_id = identifier)
+                pers_id = identifier) |>
+  dplyr::mutate(pers_id = as.integer(pers_id))
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_mandate,
-                   file = here::here("data_out", "meps_mandate.csv") )                
+                   file = here::here("data_out", "meps_mandate.csv") )
 
 # Remove API objects --------------------------------------------------------###
 rm(api_raw, api_list)
@@ -84,7 +85,8 @@ hasMembership <- lapply(
                     hasMembership) |>
       tidyr::unnest(hasMembership) } ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE) |>
-  dplyr::select(-contactPoint) |> 
+  dplyr::select(-contactPoint) |>
+  dplyr::mutate(pers_id = as.integer(pers_id)) |>
   janitor::clean_names()
 # unique(hasMembership$membership_classification)
 
@@ -101,15 +103,16 @@ meps_data_grid <- expand.grid(
 
 ###--------------------------------------------------------------------------###
 ### Extract start and end of mandate for each MEP, as well as country ----------
+# Strictly speaking, the dates we select are in date-time format, but it is not clear what time zone
 meps_start_end <- hasMembership[
   grepl("member_ep", x = role, ignore.case = TRUE)
   & organization == "org/ep-9",
-  list(pers_id, start_date = member_during_dcat_start_date, 
+  list(pers_id, start_date = member_during_dcat_start_date,
        end_date = member_during_dcat_end_date)] |>
   dplyr::mutate(
-    start_date = lubridate::as_datetime(start_date, tz = "Europe/Brussels"),
+    start_date = lubridate::as_date(start_date), # tz = "Europe/Brussels"
     end_date = ifelse(is.na(end_date), as.character(Sys.Date()), end_date),
-    end_date = lubridate::as_datetime(end_date, tz = "Europe/Brussels") ) |>
+    end_date = lubridate::as_date(end_date) ) |> # tz = "Europe/Brussels"
   dplyr::left_join(
     y = hasMembership[
       !is.na(represents)
@@ -121,7 +124,7 @@ meps_start_end <- hasMembership[
     replacement = "",
     x = represents) )
 
-# Merge
+# Merge actual MEPs' periods with full grid of dates
 meps_dates <- merge(x = meps_data_grid, y = meps_start_end,
                     by = "pers_id", all = TRUE) |>
   data.table::as.data.table()
