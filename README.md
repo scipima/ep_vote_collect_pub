@@ -1,7 +1,8 @@
 # EP Vote Collection
-This repo tests the collection of votes in the European Parliament.
+This repo collects votes in the European Parliament.
 It can be used in two different ways.
-First, the repo enables the collection of daily votes, by EP Political Group.
+First, the repo enables the collection of daily votes.
+In other words, if the `ep_rcv_today.R` script is run after the voting session ends, it gather all data relative to the daily EP Plenary.
 Second, the repo also offers the codes to download and put in tabular format all votes for the current mandate available on the API. 
 
 
