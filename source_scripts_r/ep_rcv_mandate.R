@@ -6,11 +6,12 @@
 
 ###--------------------------------------------------------------------------###
 #' DESCRIPTION.
-#' We follow 4 steps to get the daily RCVs from the EP Open Data Portal (https://data.europarl.europa.eu/en/developer-corner/opendata-api).
-#' First, we grab the calendar and subset it to get the identifier for the last Plenary.
-#' Second, with that identifier, we grab the RCV.
+#' We follow 4 steps to get the votes and RCVs for the full mandate from the EP Open Data Portal (https://data.europarl.europa.eu/en/developer-corner/opendata-api).
+#' First, we grab the calendar and subset it to get the identifier for sall Plenaries.
+#' Second, with those identifiers, we grab the votes and RCVs.
 #' Third, we get the list of the current MEPs, with all the details.
-#' Forth, and because the current MEPs list does not contain info on national party, we need to grab a further dataset with all the MEPs info, and subset to the last membership.
+#' Forth, and we get info on EP political groups and national party.
+#' Finally, we create the full grid of MEPS, Pleanry dates, and RCV unique ids so that not only the official EP votes are recorded - -i.e. `for`, `against`, `abstain` - but also absences and no votes. 
 ###--------------------------------------------------------------------------###
 
 ###--------------------------------------------------------------------------###
@@ -148,6 +149,14 @@ data.table::fwrite(x = rcv_dt,
 decided_on_a_realization_of <- lapply(
   X = vote_list_tmp,
   FUN = function(x) process_decided_on_a_realization_of(x) ) |>
+  data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
+data.table::fwrite(x = decided_on_a_realization_of,
+                   file = here::here("data_out", "decided_on_a_realization_of.csv") )
+
+# recorded_in_a_realization_of
+recorded_in_a_realization_of <- lapply(
+  X = vote_list_tmp,
+  FUN = function(x) recorded_in_a_realization_of(x) ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 data.table::fwrite(x = decided_on_a_realization_of,
                    file = here::here("data_out", "decided_on_a_realization_of.csv") )

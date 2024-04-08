@@ -13,6 +13,17 @@ process_decided_on_a_realization_of <- function(votes_raw = vote_list_tmp[["MTG-
     return(decided_on_a_realization_of) } }
 
 
+# decided_on_a_realization_of
+recorded_in_a_realization_of <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
+  if("recorded_in_a_realization_of" %in% names(votes_raw) ) {
+    recorded_in_a_realization_of <- votes_raw |>
+      dplyr::select(activity_id, recorded_in_a_realization_of) |>
+      dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
+      tidyr::unnest(recorded_in_a_realization_of) 
+    # return data.frame
+    return(recorded_in_a_realization_of) } }
+# recorded_in_a_realization_of()
+
 # was_motivated_by
 process_was_motivated_by <- function(votes_raw = vote_list_tmp[["MTG-PL-2024-02-27"]]) {
   if("was_motivated_by" %in% names(votes_raw) ) {
