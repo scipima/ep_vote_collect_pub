@@ -217,14 +217,23 @@ if ( nrow(meps_rcv_mandate) > nrow(meps_rcv_grid) ) {
 ###--------------------------------------------------------------------------###
 # Final cleaning --------------------------------------------------------------#
 # Flag for ABSENT
-meps_rcv_mandate[, is_absent := mean( is.na(result)),
-                 by = list(activity_date, pers_id)]
+meps_rcv_mandate[
+  is.na(vote_intention) & is.na(result), 
+  is_absent := 1L]
+# unique(meps_rcv_mandate$is_absent)
+meps_rcv_mandate[, is_absent_avg := mean(is_absent, na.rm = TRUE),
+                by = list(activity_date, pers_id)]  
+# sort(unique(meps_rcv_mandate$is_absent_avg))
 meps_rcv_mandate[, is_absent := data.table::fifelse(
-  test = is_absent > 0, yes = 1L, no = 0L)]
+  test = is_absent_avg == 1, yes = 1L, no = 0L) ]
+meps_rcv_mandate[, c("is_absent_avg") := NULL]  
 # Flag for DID NOT VOTE
 meps_rcv_mandate[, is_novote := fifelse(
   test = is.na(result) & is_absent == 0L, # NO VOTE but PRESENT
   yes = 1L, no = 0L) ]
+# table(meps_rcv_mandate$result, meps_rcv_mandate$is_novote, exclude = NULL) # check
+# table(meps_rcv_mandate$result, meps_rcv_mandate$is_absent, exclude = NULL) # check
+
 
 # sort table
 data.table::setkeyv(x = meps_rcv_mandate,
@@ -243,4 +252,3 @@ meps_rcv_mandate <- meps_rcv_mandate |>
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_mandate,
                    file = here::here("data_out", "meps_rcv_mandate.csv"), verbose = TRUE)
-
