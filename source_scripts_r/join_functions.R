@@ -72,7 +72,7 @@ join_polit_labs <- function(data_in) {
 join_meps_names <- function(data_in) {
   # get MEPs' names
   data_in <- merge(x = data_in, 
-                   y = meps_mandate[, list(identifier, mep_name = label)],
-                   by.x = "pers_id", by.y = "identifier", 
+                   y = meps_mandate[, list(pers_id, mep_name)],
+                   by = "pers_id", 
                    all.x = TRUE, all.y = FALSE) 
   return(data_in) }
