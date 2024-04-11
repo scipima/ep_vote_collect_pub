@@ -140,7 +140,6 @@ votes_dt[, doc_id := data.table::fifelse(
     string = activity_label_en,
     pattern = "[A-Z][8-9]-\\d{4}/\\d{4}|[A-Z]{2}-[A-Z]9-\\d{4}/\\d{4}") ) ]
 
-votes_dt[, .N, by = notation_votingId][order(N)]
 
 # append rcv ------------------------------------------------------------------#
 rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x) ) |>
@@ -237,7 +236,7 @@ meps_rcv_mandate[, is_absent := data.table::fifelse(
 # unique(meps_rcv_mandate$is_absent)
 #' True absent are absent the entire day, so take the average of `is_absent`
 meps_rcv_mandate[, is_absent_avg := mean(is_absent, na.rm = TRUE),
-                 by = list(activity_date, pers_id)]  
+                 by = list(activity_date, pers_id)]
 # head(sort(unique(meps_rcv_mandate$is_absent_avg)))
 #' Convert `is_absent` to binary
 meps_rcv_mandate[, is_absent := data.table::fifelse(
@@ -260,7 +259,7 @@ data.table::setkeyv(x = meps_rcv_mandate,
 
 # Fill in cols ----------------------------------------------------------------#
 #' There are 2 MEPs who have a mistmatch between national party and political group membership.
-#' They are: https://www.europarl.europa.eu/meps/en/228604/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep; https://www.europarl.europa.eu/meps/en/226260/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep 
+#' They are: https://www.europarl.europa.eu/meps/en/228604/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep; https://www.europarl.europa.eu/meps/en/226260/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep
 #' We fix the data gaps here.
 
 cols_tofill <- c("represents", "polgroup_id", "natparty_id")
