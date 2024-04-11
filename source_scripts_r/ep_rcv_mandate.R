@@ -126,8 +126,23 @@ source(file = here::here("source_scripts_r", "process_rcv_day.R"))
 ###--------------------------------------------------------------------------###
 
 ### Get Votes and RCV DFs ------------------------------------------------------
+# append votes ----------------------------------------------------------------#
 votes_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x) ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
+# sapply(votes_dt, function(x) sum(is.na(x))) # check
+# quick and dirty way to get doc_id out of labels
+votes_dt[, doc_id := data.table::fifelse(
+  test = is.na(activity_label_en),
+  yes = stringr::str_extract(
+    string = activity_label_fr,
+    pattern = "[A-Z][8-9]-\\d{4}/\\d{4}|[A-Z]{2}-[A-Z]9-\\d{4}/\\d{4}"),
+  no = stringr::str_extract(
+    string = activity_label_en,
+    pattern = "[A-Z][8-9]-\\d{4}/\\d{4}|[A-Z]{2}-[A-Z]9-\\d{4}/\\d{4}") ) ]
+
+votes_dt[, .N, by = notation_votingId][order(N)]
+
+# append rcv ------------------------------------------------------------------#
 rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x) ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 rcv_dt[, activity_date := as.Date(gsub(pattern = "MTG-PL-",
@@ -216,24 +231,27 @@ if ( nrow(meps_rcv_mandate) > nrow(meps_rcv_grid) ) {
 
 ###--------------------------------------------------------------------------###
 # Final cleaning --------------------------------------------------------------#
-# Flag for ABSENT
-meps_rcv_mandate[
-  is.na(vote_intention) & is.na(result), 
-  is_absent := 1L]
+#'ABSENT: if both `result` and `vote_intention` are NA, then `is_absent` = 1
+meps_rcv_mandate[, is_absent := data.table::fifelse(
+  test = is.na(vote_intention) & is.na(result), yes = 1L, no = 0L)]
 # unique(meps_rcv_mandate$is_absent)
+#' True absent are absent the entire day, so take the average of `is_absent`
 meps_rcv_mandate[, is_absent_avg := mean(is_absent, na.rm = TRUE),
-                by = list(activity_date, pers_id)]  
-# sort(unique(meps_rcv_mandate$is_absent_avg))
+                 by = list(activity_date, pers_id)]  
+# head(sort(unique(meps_rcv_mandate$is_absent_avg)))
+#' Convert `is_absent` to binary
 meps_rcv_mandate[, is_absent := data.table::fifelse(
   test = is_absent_avg == 1, yes = 1L, no = 0L) ]
-meps_rcv_mandate[, c("is_absent_avg") := NULL]  
+meps_rcv_mandate[, c("is_absent_avg") := NULL]
 # Flag for DID NOT VOTE
-meps_rcv_mandate[, is_novote := fifelse(
-  test = is.na(result) & is_absent == 0L, # NO VOTE but PRESENT
+meps_rcv_mandate[, is_novote := data.table::fifelse(
+  test = is.na(result) & is.na(vote_intention) & is_absent == 0L, # NO VOTE but PRESENT
   yes = 1L, no = 0L) ]
-# table(meps_rcv_mandate$result, meps_rcv_mandate$is_novote, exclude = NULL) # check
+# table(meps_rcv_mandate$is_absent, meps_rcv_mandate$is_novote, exclude = NULL) # check
 # table(meps_rcv_mandate$result, meps_rcv_mandate$is_absent, exclude = NULL) # check
-
+# table(meps_rcv_mandate$result, meps_rcv_mandate$is_novote, exclude = NULL) # check
+# table(meps_rcv_mandate$vote_intention, meps_rcv_mandate$is_absent, exclude = NULL) # check
+# table(meps_rcv_mandate$vote_intention, meps_rcv_mandate$is_novote, exclude = NULL) # check
 
 # sort table
 data.table::setkeyv(x = meps_rcv_mandate,
@@ -241,11 +259,15 @@ data.table::setkeyv(x = meps_rcv_mandate,
 # sapply(meps_rcv_mandate, function(x) sum(is.na(x)))
 
 # Fill in cols ----------------------------------------------------------------#
+#' There are 2 MEPs who have a mistmatch between national party and political group membership.
+#' They are: https://www.europarl.europa.eu/meps/en/228604/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep; https://www.europarl.europa.eu/meps/en/226260/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep 
+#' We fix the data gaps here.
+
 cols_tofill <- c("represents", "polgroup_id", "natparty_id")
 meps_rcv_mandate <- meps_rcv_mandate |>
   dplyr::group_by(pers_id) |>
   tidyr::fill(tidyselect::any_of(cols_tofill),
-              .direction = "down") |>
+              .direction = "downup") |>
   dplyr::ungroup() |>
   data.table::as.data.table()
 
