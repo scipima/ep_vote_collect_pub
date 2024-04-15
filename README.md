@@ -66,4 +66,8 @@ In addition, more columns may be made available over time.
 ## Execution
 The repo hosts a container (`.devcontainer`) which can be deployed through GitHub Codespaces.
 For more info, please check [r2u for Codespaces](https://eddelbuettel.github.io/r2u/vignettes/Codespaces/).
-In short, a free Codespace account comes with the GitHub registration, within certain constraints (see [here](https://github.com/features/codespaces) for more details)
+In short, a free Codespace account comes with the GitHub registration, within certain constraints (see [here](https://github.com/features/codespaces) for more details).
+
+Remember that some of the datasets are rather long. 
+For instance, as of `2024-04-15` the `rcv_dt.csv` is about 12 million rows. 
+It is likely that most excel-like software will only load a subset of such data, as it will exceed the limit of rows.

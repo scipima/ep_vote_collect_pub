@@ -30,7 +30,7 @@ if ( !dir.exists(here::here("data_out") ) ) {
 # create parameters to loop over
 years <- 2019 : data.table::year(Sys.Date())
 # grid to loop over
-api_params <- paste0("https://data.europarl.europa.eu/api/v2/meetings?year=", 
+api_params <- paste0("https://data.europarl.europa.eu/api/v2/meetings?year=",
                      years,
                      "&format=application%2Fld%2Bjson&offset=0")
 
@@ -53,8 +53,7 @@ json_list <- lapply(
       api_list <- jsonlite::fromJSON(
         rawToChar(i_json$content))
       # # extract info
-      return(api_list$data) }
-  } )
+      return(api_list$data) } } )
 
 
 # append data ---------------------------------------------------------------###
@@ -268,7 +267,9 @@ meps_rcv_mandate <- meps_rcv_mandate |>
               .direction = "downup") |>
   dplyr::ungroup() |>
   data.table::as.data.table()
+data.table::setnames(meps_rcv_mandate, old = "represents", new = "country")
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_mandate,
-                   file = here::here("data_out", "meps_rcv_mandate.csv"), verbose = TRUE)
+                   file = here::here("data_out", "meps_rcv_mandate.csv"),
+                   verbose = TRUE)
