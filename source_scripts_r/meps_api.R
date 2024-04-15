@@ -54,11 +54,11 @@ rm(api_raw, api_url, api_list)
 
 ### Loop -----------------------------------------------------------------------
 # we subset to just the JSON that are currently populated
-mep_ids <- unique(meps_mandate$pers_id)
+mep_ids <- sort(unique(meps_mandate$pers_id))
 # grid to loop over
-api_base <- "https://data.europarl.europa.eu/api/v1"
-api_params <- paste0(api_base, "/meps/", mep_ids,
-                     "?format=application%2Fld%2Bjson&json-layout=framed")
+api_params <- paste0("https://data.europarl.europa.eu/api/v2/meps/", 
+                     mep_ids,
+                     "?format=application%2Fld%2Bjson")
 
 # Function ------------------------------------------------------------------###
 get_mep_id <- function(links = api_params) {
@@ -72,7 +72,7 @@ get_mep_id <- function(links = api_params) {
         flatten = TRUE)
       return( api_list$data ) } ) }
 
-# perform parallelised check
+# run parallelised function
 future::plan(strategy = multisession) # Run in parallel on local computer
 list_tmp <- get_mep_id()
 future::plan(strategy = sequential) # revert to normal
