@@ -16,8 +16,8 @@ rm(list = ls())
 ###--------------------------------------------------------------------------###
 ## Libraries -------------------------------------------------------------------
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.apply",
-  "httr", "here", "lubridate", "janitor") )
+pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "janitor",
+                        "httr", "future.apply", "here", "lubridate") )
 
 
 # REPO SETUP: check if dir exists to dump processed files ---------------------#
@@ -27,14 +27,12 @@ if ( !dir.exists(here::here("data_out") ) ) {
 
 ###--------------------------------------------------------------------------###
 ## GET Meetings ----------------------------------------------------------------
-# EXAMPLE: https://data.europarl.europa.eu/api/v1/plenary-documents?year=2016&format=application%2Fld%2Bjson&offset=0
+# EXAMPLE: # https://data.europarl.europa.eu/api/v2/meetings?year=2022&format=application%2Fld%2Bjson&offset=0&limit=50
 # create parameters to loop over
-api_base <- "https://data.europarl.europa.eu/api/v1"
 years <- data.table::year(Sys.Date())
-# If more years are needed, change the line above to:
-# years <- 2016 : data.table::year(Sys.Date())
 # grid to loop over
-api_params <- paste0("/meetings?year=", years,
+api_params <- paste0("https://data.europarl.europa.eu/api/v2/meetings?year=", 
+                     years,
                      "&format=application%2Fld%2Bjson&offset=0")
 
 # Function ------------------------------------------------------------------###

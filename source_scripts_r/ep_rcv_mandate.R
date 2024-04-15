@@ -26,13 +26,12 @@ if ( !dir.exists(here::here("data_out") ) ) {
 
 ###--------------------------------------------------------------------------###
 ## GET Meetings ----------------------------------------------------------------
-# EXAMPLE: https://data.europarl.europa.eu/api/v1/meetings?year=2022&format=application%2Fld%2Bjson&offset=0
+# EXAMPLE: # https://data.europarl.europa.eu/api/v2/meetings?year=2022&format=application%2Fld%2Bjson&offset=0&limit=50
 # create parameters to loop over
-api_base <- "https://data.europarl.europa.eu/api/v1"
 years <- 2019 : data.table::year(Sys.Date())
-
 # grid to loop over
-api_params <- paste0(api_base, "/meetings?year=", years,
+api_params <- paste0("https://data.europarl.europa.eu/api/v2/meetings?year=", 
+                     years,
                      "&format=application%2Fld%2Bjson&offset=0")
 
 # get data from API -----------------------------------------------------------#
