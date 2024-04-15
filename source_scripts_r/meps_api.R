@@ -52,41 +52,48 @@ rm(api_raw, api_url, api_list)
 
 #' Having collected all MEPs for the current mandate, we get detailed info on all of them.
 
-### Loop -----------------------------------------------------------------------
-# we subset to just the JSON that are currently populated
+# get MEPs' IDs
 mep_ids <- sort(unique(meps_mandate$pers_id))
-# grid to loop over
-api_params <- paste0("https://data.europarl.europa.eu/api/v2/meps/", 
+# create grid to loop over
+api_params <- paste0("https://data.europarl.europa.eu/api/v2/meps/",
                      mep_ids,
                      "?format=application%2Fld%2Bjson")
 
-# Function ------------------------------------------------------------------###
-get_mep_id <- function(links = api_params) {
-  future.apply::future_lapply(
-    X = links, FUN = function(param) {
-      print(param) # check
-      api_url <- param
-      api_raw <- httr::GET(api_url)
-      api_list <- jsonlite::fromJSON(
-        rawToChar(api_raw$content),
-        flatten = TRUE)
-      return( api_list$data ) } ) }
+# get status code from API ----------------------------------------------------#
+url_list_tmp <- lapply(
+  X = setNames(object = api_params, nm = mep_ids),
+  FUN = function(api_url) {
+    Sys.sleep(0.5) # call politely
+    print(api_url) # check
+    # Get data from URL
+    httr::GET(api_url) } )
 
-# run parallelised function
+# get data from API -----------------------------------------------------------#
+get_mep_id <- function(links = url_list_tmp) {
+  future.apply::future_lapply(
+    X = links, FUN = function(i_url) {
+      print(i_url$url) # check
+      if ( !httr::status_code(i_url) %in% c(403L, 404L) ) {
+        # Get data from .json
+        api_list <- jsonlite::fromJSON( rawToChar(i_url$content) )
+        # extract info
+        return(api_list$data) } } ) }
+
+# parallelisation -------------------------------------------------------------#
 future::plan(strategy = multisession) # Run in parallel on local computer
-list_tmp <- get_mep_id()
+meps_ids_list <- get_mep_id()
 future::plan(strategy = sequential) # revert to normal
 
 
 ###--------------------------------------------------------------------------###
 ### Get mandate, political group, and national party information ---------------
 hasMembership <- lapply(
-  X = list_tmp,
-  FUN = function(i_data) {
+  X = meps_ids_list, FUN = function(i_data) {
     i_data |>
       dplyr::select(pers_id = identifier,
                     hasMembership) |>
-      tidyr::unnest(hasMembership) } ) |>
+      tidyr::unnest(hasMembership, keep_empty = TRUE) |>
+      tidyr::unnest_wider(memberDuring, names_sep = "_") } ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE) |>
   dplyr::select(-contactPoint) |>
   dplyr::mutate(pers_id = as.integer(pers_id)) |>
@@ -106,12 +113,12 @@ meps_data_grid <- expand.grid(
 
 ###--------------------------------------------------------------------------###
 ### Extract start and end of mandate for each MEP, as well as country ----------
-# Strictly speaking, the dates we select are in date-time format, but it is not clear what time zone
 meps_start_end <- hasMembership[
-  grepl("member_ep", x = role, ignore.case = TRUE)
+  grepl("MEMBER_PARLIAMENT", x = role, ignore.case = TRUE)
   & organization == "org/ep-9",
-  list(pers_id, start_date = member_during_dcat_start_date,
-       end_date = member_during_dcat_end_date)] |>
+  list(pers_id,
+       start_date = member_during_start_date,
+       end_date = member_during_end_date)] |>
   dplyr::mutate(
     start_date = lubridate::as_date(start_date), # tz = "Europe/Brussels"
     end_date = ifelse(is.na(end_date), as.character(Sys.Date()), end_date),
@@ -145,9 +152,11 @@ meps_dates[, c("to_keep", "start_date", "end_date") := NULL]
 ###--------------------------------------------------------------------------###
 ### Extract political groups ---------------------------------------------------
 meps_polgroups <- hasMembership[
-  grepl("ep_group", x = membership_classification, ignore.case = TRUE),
-  list(pers_id, polgroup_id = organization,
-       start_date = member_during_dcat_start_date, end_date = member_during_dcat_end_date)] |>
+  grepl("EU_POLITICAL_GROUP", x = membership_classification, ignore.case = TRUE),
+  list(pers_id,
+       polgroup_id = organization,
+       start_date = member_during_start_date,
+       end_date = member_during_end_date)] |>
   dplyr::mutate(
     polgroup_id = as.integer( gsub(pattern = "org/", replacement = "", x = polgroup_id) ),
     start_date = lubridate::as_date(start_date),
@@ -174,9 +183,9 @@ meps_dates_polgroups[, c("to_keep", "represents", "start_date", "end_date") := N
 ###--------------------------------------------------------------------------###
 ### Extract national parties groups --------------------------------------------
 meps_natparties <- hasMembership[
-  grepl("np", x = membership_classification, ignore.case = TRUE),
+  grepl("NATIONAL_CHAMBER", x = membership_classification, ignore.case = TRUE),
   list(pers_id, natparty_id = organization,
-       start_date = member_during_dcat_start_date, end_date = member_during_dcat_end_date)] |>
+       start_date = member_during_start_date, end_date = member_during_end_date)] |>
   dplyr::mutate(
     natparty_id = as.integer( gsub(pattern = "org/", replacement = "", x = natparty_id) ),
     start_date = lubridate::as_date(start_date),
@@ -211,7 +220,7 @@ meps_dates_ids <- merge(meps_dates_ids, meps_dates_natparties,
 sapply(meps_dates_ids, function(x) sum(is.na(x)))
 # https://www.europarl.europa.eu/meps/en/185974/JORDI_SOLE/history/9#detailedcardmep
 meps_dates_ids[pers_id == 185974L & is.na(polgroup_id),
-  polgroup_id := 5152L]
+               polgroup_id := 5152L]
 
 # write to disk ---------------------------------------------------------------#
 data.table::fwrite(x =  meps_dates_ids,
@@ -223,5 +232,5 @@ rm(hasMembership, meps_data_grid, meps_dates, meps_mandate, meps_start_end,
    meps_natparties, meps_dates_natparties)
 
 # test:before brexit, N should be 751; after brexit, 705
-# meps_dates_ids[, .N, by = list(activity_date)]
+# meps_dates_ids[, .N, keyby = list(activity_date)]
 
