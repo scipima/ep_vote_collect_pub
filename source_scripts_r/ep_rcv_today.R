@@ -324,12 +324,11 @@ rcv_today[, result := as.integer(result)]
 # Remove API objects --------------------------------------------------------###
 rm(api_raw, api_list, list_tmp, df_check)
 
-
 ###--------------------------------------------------------------------------###
 ## GET/meps/show-current -------------------------------------------------------
 # Returns the list of all active MEPs for today's date
 api_raw <- httr::GET(
-  url = "https://data.europarl.europa.eu/api/v1/meps/show-current?format=application%2Fld%2Bjson&offset=0")
+  url = "https://data.europarl.europa.eu/api/v2/meps/show-current?format=application%2Fld%2Bjson&offset=0")
 api_list <- jsonlite::fromJSON(
   rawToChar(api_raw$content),
   flatten = TRUE)

@@ -7,7 +7,6 @@
 #' This script connects to the EP Open Data Portal API to download the list of MEPs for the current mandate (i.e. 9th).
 #' The script implies that `ep_rcv_mandate.R` has already been executed.
 #' This is because it needs the output `.csv` from that script to extract the Plenary dates.
-
 #' There seems to be an issue with `GUE`- `The Left`, as MEPs belonging to that Group are reported twice (as the Group changed name during the mandate).
 #' This needs to be sorted downstream.
 #' REF: https://data.europarl.europa.eu/en/home; https://data.europarl.europa.eu/en/developer-corner/opendata-api
@@ -26,11 +25,15 @@ library(future.apply)
 ###--------------------------------------------------------------------------###
 ## GET/meps --------------------------------------------------------------------
 # Returns the list of all the MEPs --------------------------------------------#
-api_raw <- httr::GET(
-  url = "https://data.europarl.europa.eu/api/v1/meps?parliamentary-term=9&format=application%2Fld%2Bjson&offset=0")
+
+#' We start by collecting the list of MEPs for the 9th mandate.
+
+# API call --------------------------------------------------------------------#
+# EXAMPLE: https://data.europarl.europa.eu/api/v2/meps?parliamentary-term=9&format=application%2Fld%2Bjson&offset=0&limit=50
+api_url <- "https://data.europarl.europa.eu/api/v2/meps?parliamentary-term=9&format=application%2Fld%2Bjson&offset=0"
+api_raw <- httr::GET(api_url)
 api_list <- jsonlite::fromJSON(
-  rawToChar(api_raw$content),
-  flatten = TRUE)
+  rawToChar(api_raw$content), flatten = TRUE)
 meps_mandate <- api_list$data |>
   janitor::clean_names() |>
   dplyr::select(mep_name = label,
@@ -42,7 +45,7 @@ data.table::fwrite(x = meps_mandate,
                    file = here::here("data_out", "meps_mandate.csv") )
 
 # Remove API objects --------------------------------------------------------###
-rm(api_raw, api_list)
+rm(api_raw, api_url, api_list)
 
 ###--------------------------------------------------------------------------###
 ## GET/MEP-ID ------------------------------------------------------------------
