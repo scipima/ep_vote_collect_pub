@@ -71,7 +71,7 @@ calendar <- calendar[date >= as.Date("2019-07-01")
 calendar[, c("type", "id", "had_activity_type") := NULL]
 
 # Remove API objects --------------------------------------------------------###
-rm(api_base, api_params, get_meetings_json, json_list)
+rm(api_params, get_meetings_json, json_list)
 
 
 ###--------------------------------------------------------------------------###
@@ -267,7 +267,9 @@ meps_rcv_mandate <- meps_rcv_mandate |>
               .direction = "downup") |>
   dplyr::ungroup() |>
   data.table::as.data.table()
-data.table::setnames(meps_rcv_mandate, old = "represents", new = "country")
+data.table::setnames(meps_rcv_mandate, 
+                     old = c("represents", "notation_votingId"),
+                     new = c("country", "rcv_id"))
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_mandate,
