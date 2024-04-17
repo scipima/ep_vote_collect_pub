@@ -69,6 +69,8 @@ data.table::fwrite(x = tally_bygroup_byrcv,
 data.table::fwrite(x = tally_bygroup_byparty_byrcv,
                    file = here::here("data_out", "tally_bygroup_byparty_byrcv.csv"))
 
+
+###------------------------------------------------------------------------###
 #' Uncomment the lines below if you also want to extract tables for the Groups' majorities
 
 # # calculate majority
@@ -92,4 +94,11 @@ data.table::fwrite(x = tally_bygroup_byparty_byrcv,
 # data.table::fwrite(x = majority_bygroup_byrcv,
 #                    file = here::here("data_out", "majority_bygroup_byrcv.csv"))
 
+###------------------------------------------------------------------------###
+# Get the last configuration of the EP
+# data.table::fwrite(
+#   x = unique(meps_rcv_mandate[
+#     activity_date == max(activity_date, na.rm = TRUE),
+#     list(pers_id, natparty_id, polgroup_id, country)]),
+#   file = here::here("data_out", "meps_lastplenary.csv"), verbose = TRUE)
 
