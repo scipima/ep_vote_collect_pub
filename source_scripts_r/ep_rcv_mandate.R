@@ -137,7 +137,7 @@ votes_dt[, doc_id := data.table::fifelse(
   no = stringr::str_extract(
     string = activity_label_en,
     pattern = "[A-Z][8-9]-\\d{4}/\\d{4}|[A-Z]{2}-[A-Z]9-\\d{4}/\\d{4}") ) ]
-
+votes_dt[, notation_votingId := as.integer(notation_votingId)]
 
 # append rcv ------------------------------------------------------------------#
 rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x) ) |>
