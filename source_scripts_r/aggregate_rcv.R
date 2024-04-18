@@ -24,14 +24,14 @@ if (exists("today")) {
   ## Aggregate RCV results by Political Groups ---------------------------------
   result_bygroup_byrcv <- meps_rcv_today[!is.na(result),
                                          list(Sum = length(unique(pers_id))), 
-                                         keyby = list(notation_votingId, political_group, result) ]
+                                         keyby = list(rcv_id, political_group, result) ]
   meps_rcv_today[is_absent == 1L, result_full := "absent"]
   meps_rcv_today[is_novote == 1L, result_full := "no vote"]
   meps_rcv_today[result == 1L, result_full := "for"]
   meps_rcv_today[result == 0L, result_full := "abstain"]
   meps_rcv_today[result == -1L, result_full := "against"]
   fullresult_bygroup_byrcv <- meps_rcv_today[, list(Sum = length(unique(pers_id))), 
-                                             keyby = list(notation_votingId, political_group, result_full) ]
+                                             keyby = list(rcv_id, political_group, result_full) ]
   
   # write data to disk --------------------------------------------------------#
   data.table::fwrite(x = meps_rcv_today,
@@ -44,9 +44,9 @@ if (exists("today")) {
 
 ###------------------------------------------------------------------------###
 ## Data ----------------------------------------------------------------------
-meps_rcv_mandate <- data.table::fread(file = here::here(
-  "data_out", "meps_rcv_mandate.csv"), verbose = TRUE, 
-  key = c("activity_date", "notation_votingId", "pers_id"))
+meps_rcv_mandate <- data.table::fread(
+  file = here::here("data_out", "meps_rcv_mandate.csv"),
+  verbose = TRUE, key = c("activity_date", "rcv_id", "pers_id"))
 
 ###------------------------------------------------------------------------###
 ## Aggregate RCV results by Political Groups ---------------------------------
@@ -58,10 +58,10 @@ meps_rcv_mandate[result == -1L, result_full := "against"]
 table(meps_rcv_mandate$result_full, exclude = NULL)
 tally_bygroup_byrcv <- meps_rcv_mandate[
   , list(tally = length(unique(pers_id))), 
-  keyby = list(notation_votingId, polgroup_id, result_full) ]
+  keyby = list(rcv_id, polgroup_id, result_full) ]
 tally_bygroup_byparty_byrcv <- meps_rcv_mandate[
   , list(tally = length(unique(pers_id))), 
-  keyby = list(notation_votingId, represents, polgroup_id, natparty_id, result_full) ]
+  keyby = list(rcv_id, country, polgroup_id, natparty_id, result_full) ]
 
 # write data to disk --------------------------------------------------------#
 data.table::fwrite(x = tally_bygroup_byrcv,
@@ -74,31 +74,31 @@ data.table::fwrite(x = tally_bygroup_byparty_byrcv,
 #' Uncomment the lines below if you also want to extract tables for the Groups' majorities
 
 # # calculate majority
-# majorityfull_bygroup_byrcv <- tally_bygroup_byrcv[
-#   , list(vote_max = max(tally, na.rm = TRUE),
-#          votes_sum = sum(tally, na.rm = TRUE)),
-#   keyby = list(notation_votingId, polgroup_id)]
-# majority_bygroup_byrcv <- tally_bygroup_byrcv[
-#   result_full %in% c("for", "against", "abstain"),
-#   list(vote_max = max(tally, na.rm = TRUE),
-#        votes_sum = sum(tally, na.rm = TRUE)),
-#   keyby = list(notation_votingId, polgroup_id)]
+majorityfull_bygroup_byrcv <- tally_bygroup_byrcv[
+  , list(vote_max = max(tally, na.rm = TRUE),
+         votes_sum = sum(tally, na.rm = TRUE)),
+  keyby = list(rcv_id, polgroup_id)]
+majority_bygroup_byrcv <- tally_bygroup_byrcv[
+  result_full %in% c("for", "against", "abstain"),
+  list(vote_max = max(tally, na.rm = TRUE),
+       votes_sum = sum(tally, na.rm = TRUE)),
+  keyby = list(rcv_id, polgroup_id)]
 # 
 # # check for ties
-# majorityfull_bygroup_byrcv[, .N, by = list(notation_votingId, polgroup_id)][order(N)]
-# majority_bygroup_byrcv[, .N, by = list(notation_votingId, polgroup_id)][order(N)]
+majorityfull_bygroup_byrcv[, .N, by = list(rcv_id, polgroup_id)][order(N)]
+majority_bygroup_byrcv[, .N, by = list(rcv_id, polgroup_id)][order(N)]
 # 
 # # write data to disk --------------------------------------------------------#
-# data.table::fwrite(x = majorityfull_bygroup_byrcv,
-#                    file = here::here("data_out", "majorityfull_bygroup_byrcv.csv"))
-# data.table::fwrite(x = majority_bygroup_byrcv,
-#                    file = here::here("data_out", "majority_bygroup_byrcv.csv"))
+data.table::fwrite(x = majorityfull_bygroup_byrcv,
+                   file = here::here("data_out", "majorityfull_bygroup_byrcv.csv"))
+data.table::fwrite(x = majority_bygroup_byrcv,
+                   file = here::here("data_out", "majority_bygroup_byrcv.csv"))
 
 ###------------------------------------------------------------------------###
 # Get the last configuration of the EP
-# data.table::fwrite(
-#   x = unique(meps_rcv_mandate[
-#     activity_date == max(activity_date, na.rm = TRUE),
-#     list(pers_id, natparty_id, polgroup_id, country)]),
-#   file = here::here("data_out", "meps_lastplenary.csv"), verbose = TRUE)
+data.table::fwrite(
+  x = unique(meps_rcv_mandate[
+    activity_date == max(activity_date, na.rm = TRUE),
+    list(pers_id, natparty_id, polgroup_id, country)]),
+  file = here::here("data_out", "meps_lastplenary.csv"), verbose = TRUE)
 

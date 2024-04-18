@@ -138,6 +138,7 @@ votes_dt[, doc_id := data.table::fifelse(
     string = activity_label_en,
     pattern = "[A-Z][8-9]-\\d{4}/\\d{4}|[A-Z]{2}-[A-Z]9-\\d{4}/\\d{4}") ) ]
 votes_dt[, notation_votingId := as.integer(notation_votingId)]
+data.table::setnames(x = votes_dt, old = c("notation_votingId"), new = c("rcv_id"))
 
 # append rcv ------------------------------------------------------------------#
 rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x) ) |>
@@ -148,8 +149,13 @@ rcv_dt[, plenary_id := NULL]
 # sapply(rcv_dt, function(x) sum(is.na(x))) # check
 
 # write data to disk ----------------------------------------------------------#
+# votes
 data.table::fwrite(x = votes_dt,
                    file = here::here("data_out", "votes_dt.csv") )
+# just doc_id and rcv_id
+data.table::fwrite(x = unique(votes_dt[, list(rcv_id, doc_id)]),
+                   file = here::here("data_out", "rcvid_docid.csv") )
+# rcv
 data.table::fwrite(x = rcv_dt,
                    file = here::here("data_out", "rcv_dt.csv") )
 
