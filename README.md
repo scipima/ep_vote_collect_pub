@@ -27,10 +27,10 @@ Then gets all available data from the EP API on these meetings, namely votes.
 It calls two functions to clean the data, `process_vote_day.R` and `process_rcv_day.R`, which respectively deal with *votes* and *rcv* (unsurprisingly ...).
 Having cleaned the data, the scripts then saves them into 2 files, `votes_dt.csv` (a `wide` files with as many rows as votes on that day), and `rcv_dt.csv` (a very `long` file containing all RCVs). 
 * Once `ep_rcv_mandate.R` has collected and cleaned the voting data, it has to combine it with information on the MEPs.
-The `meps_api.R` calls the EP API to first download the full list of MEPs during the 9th mandate, and then grab all the supplementary information on each of these MEPs.
+The `api_meps.R` calls the EP API to first download the full list of MEPs during the 9th mandate, and then grab all the supplementary information on each of these MEPs.
 In particular, it grabs the `country`, the `national party`, the `political group`, and then the duration of the `mandates`.
 It then combines these pieces of information into a single dataframe, `meps_dates_ids.csv`, which lists all the MEPs who have transited through the EP, with each MEP listed for all the dates in which he/she should have been present in the House, as well as his/her `membership`.
-* National parties and EP Political Groups feature as integers in the data, so we also have to execute another script - `ep_bodies.R` - to grab the dictionaries for these unique ids.
+* National parties and EP Political Groups feature as integers in the data, so we also have to execute another script - `api_bodies.R` - to grab the dictionaries for these unique ids.
 Bear in mind that the user should always double check these, as mistakes at data entry stage tend to occur, or data are simply missing.
 This script spits out 3 tables, `national_parties.csv`, `political_groups.csv`, and `body_id_full.csv`.
 * The last code chunks in `ep_rcv_mandate.R` merges several of these different datasets into a single one.

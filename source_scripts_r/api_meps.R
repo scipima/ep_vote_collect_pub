@@ -217,7 +217,7 @@ meps_dates_ids <- merge(meps_dates_ids, meps_dates_natparties,
                         by = c("pers_id", "activity_date"), all = TRUE)
 
 # Fix data entry issues -------------------------------------------------------#
-sapply(meps_dates_ids, function(x) sum(is.na(x)))
+# sapply(meps_dates_ids, function(x) sum(is.na(x)))
 # https://www.europarl.europa.eu/meps/en/185974/JORDI_SOLE/history/9#detailedcardmep
 meps_dates_ids[pers_id == 185974L & is.na(polgroup_id),
                polgroup_id := 5152L]

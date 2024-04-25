@@ -187,12 +187,12 @@ rm(vote_list_tmp)
 
 #' Get clean data on MEPs' membership and mandate duration.
 
-source(file = here::here("source_scripts_r", "meps_api.R"))
+source(file = here::here("source_scripts_r", "api_meps.R"))
 # sapply(meps_dates_ids, function(x) sum(is.na(x))) # check
 
 #' Get look-up tables for MEPs' memberships, and fetch `join_functions.R`
 
-source(file = here::here("source_scripts_r", "ep_bodies.R"))
+source(file = here::here("source_scripts_r", "api_bodies.R"))
 source(file = here::here("source_scripts_r", "join_functions.R"))
 ###--------------------------------------------------------------------------###
 
@@ -266,16 +266,14 @@ data.table::setkeyv(x = meps_rcv_mandate,
 #' They are: https://www.europarl.europa.eu/meps/en/228604/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep; https://www.europarl.europa.eu/meps/en/226260/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep
 #' We fix the data gaps here.
 
-cols_tofill <- c("represents", "polgroup_id", "natparty_id")
+cols_tofill <- c("country", "polgroup_id", "natparty_id")
 meps_rcv_mandate <- meps_rcv_mandate |>
   dplyr::group_by(pers_id) |>
   tidyr::fill(tidyselect::any_of(cols_tofill),
               .direction = "downup") |>
   dplyr::ungroup() |>
   data.table::as.data.table()
-data.table::setnames(meps_rcv_mandate, 
-                     old = c("represents", "notation_votingId"),
-                     new = c("country", "rcv_id"))
+data.table::setnames(meps_rcv_mandate, old = c("notation_votingId"), new = c("rcv_id"))
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_mandate,
