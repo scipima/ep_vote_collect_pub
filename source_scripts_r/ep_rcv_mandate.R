@@ -77,7 +77,7 @@ rm(api_params, get_meetings_json, json_list)
 ###--------------------------------------------------------------------------###
 ## GET/meetings/{event-id}/decisions -------------------------------------------
 # Returns all decisions in a single EP Meeting --------------------------------#
-# EXAMPLE: "https://data.europarl.europa.eu/api/v1/meetings/MTG-PL-2023-07-12/decisions?format=application%2Fld%2Bjson&json-layout=framed"
+# EXAMPLE: "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2023-07-12/decisions?format=application%2Fld%2Bjson&json-layout=framed"
 
 # get status code from API ----------------------------------------------------#
 url_list_tmp <- lapply(
@@ -87,7 +87,7 @@ url_list_tmp <- lapply(
     # grid to loop over
     print(i_param) # check
     Sys.sleep(1) # call politely
-    api_url <- paste0("https://data.europarl.europa.eu/api/v1/meetings/",
+    api_url <- paste0("https://data.europarl.europa.eu/api/v2/meetings/",
                       i_param,
                       "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
     # Get data from URL
