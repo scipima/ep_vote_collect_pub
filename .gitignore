@@ -51,3 +51,6 @@ rsconnect/
 
 # data_out
 /data_out/*.csv
+
+# vote json
+data_in/meeting_decision_json/*.json

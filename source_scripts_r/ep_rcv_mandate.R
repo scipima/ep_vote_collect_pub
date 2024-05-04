@@ -19,6 +19,7 @@ if (!require("pacman")) install.packages("pacman")
 pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.apply",
                         "httr", "here", "lubridate", "janitor", "jsonlite") )
 
+# repo set-up -----------------------------------------------------------------#
 # check if dir exists to dump processed files
 if ( !dir.exists(here::here("data_out") ) ) {
   dir.create(here::here("data_out") ) }
@@ -48,7 +49,7 @@ json_list <- lapply(
   X = get_meetings_json,
   function(i_json) {
     print(i_json$url) # check
-    if ( httr::status_code(i_json) != 404 ) {
+    if ( httr::status_code(i_json) == 200L ) {
       # Get data from .json
       api_list <- jsonlite::fromJSON(
         rawToChar(i_json$content))
@@ -79,39 +80,35 @@ rm(api_params, get_meetings_json, json_list)
 # Returns all decisions in a single EP Meeting --------------------------------#
 # EXAMPLE: "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2023-07-12/decisions?format=application%2Fld%2Bjson&json-layout=framed"
 
-# get status code from API ----------------------------------------------------#
-url_list_tmp <- lapply(
+# loop to get all decisions
+resp_list <- lapply(
   X = setNames(object = calendar$activity_id,
                nm = calendar$activity_id),
   FUN = function(i_param) {
-    # grid to loop over
-    print(i_param) # check
-    Sys.sleep(1) # call politely
-    api_url <- paste0("https://data.europarl.europa.eu/api/v2/meetings/",
-                      i_param,
-                      "/decisions?format=application%2Fld%2Bjson&json-layout=framed")
-    # Get data from URL
-    httr::GET(api_url) } )
+    print(i_param)
+    # Creae an API request
+    req <- httr2::request("https://data.europarl.europa.eu/api/v2") |>
+      httr2::req_url_path_append("meetings") |>
+      httr2::req_url_path_append(i_param) |>
+      httr2::req_url_path_append("/decisions?format=application%2Fld%2Bjson&json-layout=framed")
+    # Add time-out and ignore error
+    resp <- req |>
+      httr2::req_error(is_error = ~FALSE) |>
+      httr2::req_throttle(10 / 60) |>
+      httr2::req_perform()
+    # If not an error, download and make available in ENV
+    if ( httr2::resp_status(resp) == 200L) {
+      resp_body <- resp |>
+        httr2::resp_body_json()
+      # store this on disk to manually check if needs be
+      jsonlite::write_json(x = resp_body$data,
+                           path = here::here("data_in", "meeting_decision_json",
+                                             paste0(i_param, ".json") ) )
+      return(resp_body$data)
+    } } )
 
-# get data from API -----------------------------------------------------------#
-get_vote <- function(links = url_list_tmp) {
-  future.apply::future_lapply(
-    X = links, FUN = function(i_url) {
-      print(i_url$url) # check
-      if ( httr::status_code(i_url) != 404 ) {
-        # Get data from .json
-        api_list <- jsonlite::fromJSON(
-          rawToChar(i_url$content) )
-        # extract info
-        return(api_list$data) } } ) }
-
-# parallelisation -----------------------------------------------------------###
-future::plan(strategy = multisession) # Run in parallel on local computer
-vote_list_tmp <- get_vote()
-future::plan(strategy = sequential) # revert to normal
-
-# remove objects --------------------------------------------------------------#
-rm(url_list_tmp)
+# get rid of NULL items in list
+resp_list <- resp_list[!sapply(X = resp_list, is.null)]
 
 ###--------------------------------------------------------------------------###
 # Source functions ------------------------------------------------------------#
@@ -125,7 +122,7 @@ source(file = here::here("source_scripts_r", "process_rcv_day.R"))
 
 ### Get Votes and RCV DFs ------------------------------------------------------
 # append votes ----------------------------------------------------------------#
-votes_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_vote_day(x) ) |>
+votes_dt <- lapply(X = resp_list, FUN = function(x) process_vote_day(x) ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 # sapply(votes_dt, function(x) sum(is.na(x))) # check
 # quick and dirty way to get doc_id out of labels
