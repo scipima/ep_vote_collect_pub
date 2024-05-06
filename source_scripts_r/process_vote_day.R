@@ -11,9 +11,6 @@
 ###--------------------------------------------------------------------------###
 
 process_vote_day <- function(votes_raw = resp_list[["MTG-PL-2019-07-18"]]) {
-
-# for (i_vote in seq_along(vote_list_tmp)){
-#     votes_raw = vote_list_tmp[[i_vote]]
     print(unique(votes_raw$activity_date))
 
     #### Flat cols -------------------------------------------------------------
