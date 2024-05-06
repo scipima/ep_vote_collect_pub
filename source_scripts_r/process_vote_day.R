@@ -7,9 +7,10 @@
 #' We tackle the flat part first, which gives us the RCV metadata.
 #' Then we grab all the dataframe-cols, unnest them, and keep only 3 languages (if available).
 #' Finally, we grab the list-cols and unnest them.
+#' The end result is data.frame in classic tabular format.
 ###--------------------------------------------------------------------------###
 
-process_vote_day <- function(votes_raw = resp_list[["MTG-PL-2022-05-19"]]) {
+process_vote_day <- function(votes_raw = resp_list[["MTG-PL-2019-07-18"]]) {
 
 # for (i_vote in seq_along(vote_list_tmp)){
 #     votes_raw = vote_list_tmp[[i_vote]]
@@ -19,10 +20,11 @@ process_vote_day <- function(votes_raw = resp_list[["MTG-PL-2022-05-19"]]) {
     # sometimes the class of some cols is corrupt - fix it here
     cols_character <- c("id", "activity_date", "activity_id", "activity_start_date",
                         "decision_method", "had_activity_type", "had_decision_outcome",
-                        "notation_votingId", "decisionAboutId", "decisionAboutId_XMLLiteral",
+                        "decisionAboutId", "decisionAboutId_XMLLiteral",
                         "decided_on_a_part_of_a_realization_of")
-    cols_integer <- c("activity_order", "number_of_attendees", "number_of_votes_abstention",
-                      "number_of_votes_against", "number_of_votes_favor")
+    cols_integer <- c("activity_order", "notation_votingId", "number_of_attendees",
+                      "number_of_votes_abstention", "number_of_votes_against",
+                      "number_of_votes_favor")
     # sometimes `type` is of class character
     if (class(votes_raw$type) == "character") {
         cols_character <- c(cols_character, "type") }
@@ -51,6 +53,7 @@ process_vote_day <- function(votes_raw = resp_list[["MTG-PL-2022-05-19"]]) {
                 y = votes_today,
                 by = "activity_id") }
 
+    #--------------------------------------------------------------------------#
     #### Tackle df-cols --------------------------------------------------------
     cols_dataframe <- names(votes_raw)[
         sapply(votes_raw, class) %in% c("data.frame")]
@@ -75,6 +78,7 @@ process_vote_day <- function(votes_raw = resp_list[["MTG-PL-2022-05-19"]]) {
     votes_today <- merge(votes_today, df_tmp, by = c("activity_id"), all = TRUE) |>
         data.table::as.data.table()
 
+    #--------------------------------------------------------------------------#
     #### Tackle list-cols ------------------------------------------------------
     cols_list <- names(votes_raw)[
         sapply(votes_raw, class) %in% c("list")]
