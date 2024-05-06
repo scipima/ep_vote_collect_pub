@@ -11,17 +11,19 @@
 #' This is because some MEPs may not have a vote for a given RCV, but only an intention.
 ###--------------------------------------------------------------------------###
 
-process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2022-05-19"]]) {
+process_rcv_day <- function( votes_raw = resp_list[["MTG-PL-2019-07-18"]] ) {
+  print(unique(votes_raw$activity_date)) # check where we are in the loop
 
   # Votes ---------------------------------------------------------------------#
   vote_cols <- c("had_voter_abstention", "had_voter_against", "had_voter_favor")
   vote_cols <- vote_cols[vote_cols %in% names(votes_raw)]
 
+  # process and flatten
   rcv_vote <- lapply(
     X = setNames(object = vote_cols, nm = vote_cols),
     FUN = function(j_col) {
       votes_raw |>
-        dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |>
+        dplyr::filter( grepl(pattern = "ROLL_CALL_EV|ROLLCALL", x = decision_method) ) |>
         dplyr::select(notation_votingId, tidyselect::any_of(j_col)) |>
         dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
         tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
@@ -43,7 +45,7 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2022-05-19"]]) {
       X = setNames(object = vote_intention_cols, nm = vote_intention_cols),
       FUN = function(j_col) {
         votes_raw |>
-          dplyr::filter( grepl(pattern = "ROLL_CALL_EV", x = decision_method) ) |>
+          dplyr::filter( grepl(pattern = "ROLL_CALL_EV|ROLLCALL", x = decision_method) ) |>
           dplyr::select(notation_votingId, tidyselect::any_of(j_col) ) |>
           dplyr::distinct() |> # DEFENSIVE: there may be duplicate rows
           tidyr::unnest( tidyselect::any_of(j_col) ) } ) |>
@@ -68,7 +70,7 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2022-05-19"]]) {
       warning("WATCH OUT: You may have duplicate records")}
   }
 
-  # recode & clean   -------------------------------------------------#
+  # recode & clean ------------------------------------------------------------#
   rcv_vote[, pers_id := as.integer(
     gsub(pattern = "person/", replacement = "", x = pers_id))]
   rcv_vote[result == "had_voter_abstention", result := 0]
@@ -83,7 +85,7 @@ process_rcv_day <- function(votes_raw = vote_list_tmp[["MTG-PL-2022-05-19"]]) {
     rcv_vote[vote_intention == "had_voter_intended_against", vote_intention := -1]
     rcv_vote[, vote_intention := as.integer(vote_intention)] }
 
-  # return data.frame
+  # return data.frame ---------------------------------------------------------#
   return(rcv_vote)
 }
 
