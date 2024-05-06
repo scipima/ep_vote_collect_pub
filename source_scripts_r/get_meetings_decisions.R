@@ -65,6 +65,7 @@ source(file = here::here("source_scripts_r", "process_rcv_day.R"))
 votes_dt <- lapply(X = resp_list, FUN = function(x) process_vote_day(x) ) |>
     data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 # sapply(votes_dt, function(x) sum(is.na(x))) # check
+
 # quick and dirty way to get doc_id out of labels
 votes_dt[, doc_id := data.table::fifelse(
     test = is.na(activity_label_en),
@@ -74,12 +75,12 @@ votes_dt[, doc_id := data.table::fifelse(
     no = stringr::str_extract(
         string = activity_label_en,
         pattern = "[A-Z][8-9]-\\d{4}/\\d{4}|[A-Z]{2}-[A-Z]9-\\d{4}/\\d{4}") ) ]
-votes_dt[, notation_votingId := as.integer(notation_votingId)]
+# rename col
 data.table::setnames(x = votes_dt, old = c("notation_votingId"), new = c("rcv_id"))
 
 
 # append & clean rcv ----------------------------------------------------------#
-rcv_dt <- lapply(X = vote_list_tmp, FUN = function(x) process_rcv_day(x) ) |>
+rcv_dt <- lapply(X = resp_list, FUN = function(x) process_rcv_day(x) ) |>
     data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 rcv_dt[, activity_date := as.Date(gsub(pattern = "MTG-PL-",
                                        replacement = "", x = plenary_id))]
@@ -104,7 +105,7 @@ data.table::fwrite(x = rcv_dt,
 # Get DF in list-cols ---------------------------------------------------------#
 # process_decided_on_a_realization_of
 decided_on_a_realization_of <- lapply(
-    X = vote_list_tmp,
+    X = resp_list,
     FUN = function(x) process_decided_on_a_realization_of(x) ) |>
     data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 data.table::fwrite(x = decided_on_a_realization_of,
@@ -112,7 +113,7 @@ data.table::fwrite(x = decided_on_a_realization_of,
 
 # process_was_motivated_by
 motivated_by <- lapply(
-    X = vote_list_tmp,
+    X = resp_list,
     FUN = function(x) process_was_motivated_by(x) ) |>
     data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 data.table::fwrite(x = motivated_by,
@@ -120,4 +121,4 @@ data.table::fwrite(x = motivated_by,
 
 
 # remove objects --------------------------------------------------------------#
-rm(vote_list_tmp)
+rm(resp_list)
