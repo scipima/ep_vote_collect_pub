@@ -77,10 +77,8 @@ rm(api_params, get_meetings_json, json_list)
 
 ###--------------------------------------------------------------------------###
 ## GET/meetings/{event-id}/decisions -------------------------------------------
-# Returns all decisions in a single EP Meeting --------------------------------#
-# EXAMPLE: "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2023-07-12/decisions?format=application%2Fld%2Bjson&json-layout=framed"
 
-### Download all these files if very long, make sure we do it rarely -----------
+### Download all these files if very long, make sure we do it rarely ----------#
 # check whether data already exists
 if ( file.exists( here::here("data_out", "votes_dt.csv") ) ) {
   # get date of last version
@@ -102,16 +100,63 @@ rm(mtime)
 
 
 ###--------------------------------------------------------------------------###
-# Source script ---------------------------------------------------------------#
+## GET/meps/{mep-id} -----------------------------------------------------------
+# Returns a single MEP for the specified mep ID -------------------------------#
 
 #' Get clean data on MEPs' membership and mandate duration.
 
-source(file = here::here("source_scripts_r", "api_meps.R"))
+### Download all these files if very long, make sure we do it rarely ----------#
+# check whether data already exists
+if ( file.exists( here::here("data_out", "meps_dates_ids.csv") ) ) {
+  # get date of last version
+  mtime <- as.Date(file.info(
+    here::here("data_out", "meps_dates_ids.csv"))[["mtime"]])
+  if ( (Sys.Date() - mtime) == 0L ) {
+    # read data ---------------------------------------------------------------#
+    meps_dates_ids <- data.table::fread( here::here("data_out", "meps_dates_ids.csv") )
+  } else {
+    # If the data is older than today, recreate data from source --------------#
+    source(file = here::here("source_scripts_r", "api_meps.R") )
+  }
+} else {
+  # If the data is not there, create data from source -------------------------#
+  source(file = here::here("source_scripts_r", "api_meps.R") )
+}
+rm(mtime)
 # sapply(meps_dates_ids, function(x) sum(is.na(x))) # check
 
-#' Get look-up tables for MEPs' memberships, and fetch `join_functions.R`
 
-source(file = here::here("source_scripts_r", "api_bodies.R"))
+###--------------------------------------------------------------------------###
+## GET/corporate-bodies/{body-id} ----------------------------------------------
+# Returns a single EP Corporate Body for the specified body ID ----------------#
+
+#' Get look-up tables for MEPs' memberships
+
+### Download all these files if very long, make sure we do it rarely ----------#
+# check whether data already exists
+if ( file.exists( here::here("data_out", "meps_dates_ids.csv") ) ) {
+  # get date of last version
+  mtime <- as.Date(file.info(
+    here::here("data_out", "meps_dates_ids.csv"))[["mtime"]])
+  if ( (Sys.Date() - mtime) == 0L ) {
+    # read data ---------------------------------------------------------------#
+    national_parties <- data.table::fread( here::here("data_out", "national_parties.csv") )
+    political_groups <- data.table::fread( here::here("data_out", "political_groups.csv") )
+  } else {
+    # If the data is older than today, recreate data from source --------------#
+    source(file = here::here("source_scripts_r", "api_bodies.R") )
+  }
+} else {
+  # If the data is not there, create data from source -------------------------#
+  source(file = here::here("source_scripts_r", "api_bodies.R") )
+}
+rm(mtime)
+
+
+###--------------------------------------------------------------------------###
+
+#' Load join functions
+
 source(file = here::here("source_scripts_r", "join_functions.R"))
 ###--------------------------------------------------------------------------###
 
