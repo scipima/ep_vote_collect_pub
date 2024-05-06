@@ -63,7 +63,7 @@ api_params <- paste0("https://data.europarl.europa.eu/api/v2/meps/",
 url_list_tmp <- lapply(
   X = setNames(object = api_params, nm = mep_ids),
   FUN = function(api_url) {
-    Sys.sleep(0.5) # call politely
+    Sys.sleep(5) # call politely
     print(api_url) # check
     # Get data from URL
     httr::GET(api_url) } )
@@ -223,14 +223,14 @@ meps_dates_ids[pers_id == 185974L & is.na(polgroup_id),
                polgroup_id := 5152L]
 
 # rename col ------------------------------------------------------------------#
-data.table::setnames(meps_dates_ids, old = c("represents"), new = c("country"))               
+data.table::setnames(meps_dates_ids, old = c("represents"), new = c("country"))
 
 # write to disk ---------------------------------------------------------------#
 data.table::fwrite(x =  meps_dates_ids,
                    file = here::here("data_out", "meps_dates_ids.csv"))
 
 # remove intermediate objects
-rm(hasMembership, meps_data_grid, meps_dates, meps_mandate, meps_start_end,
+rm(hasMembership, meps_data_grid, meps_dates, meps_mandate, meps_start_end, meps_ids_list,
    meps_polgroups, meps_dates_polgroups,
    meps_natparties, meps_dates_natparties)
 

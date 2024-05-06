@@ -134,10 +134,10 @@ rm(mtime)
 
 ### Download all these files if very long, make sure we do it rarely ----------#
 # check whether data already exists
-if ( file.exists( here::here("data_out", "meps_dates_ids.csv") ) ) {
+if ( file.exists( here::here("data_out", "national_parties.csv") ) ) {
   # get date of last version
   mtime <- as.Date(file.info(
-    here::here("data_out", "meps_dates_ids.csv"))[["mtime"]])
+    here::here("data_out", "national_parties.csv"))[["mtime"]])
   if ( (Sys.Date() - mtime) == 0L ) {
     # read data ---------------------------------------------------------------#
     national_parties <- data.table::fread( here::here("data_out", "national_parties.csv") )
@@ -243,3 +243,7 @@ data.table::setnames(meps_rcv_mandate, old = c("notation_votingId"), new = c("rc
 data.table::fwrite(x = meps_rcv_mandate,
                    file = here::here("data_out", "meps_rcv_mandate.csv"),
                    verbose = TRUE)
+
+
+# remove objects --------------------------------------------------------------#
+rm( meps_dates_ids, meps_mandate, meps_rcv_grid, resp_list, url_list_tmp)
