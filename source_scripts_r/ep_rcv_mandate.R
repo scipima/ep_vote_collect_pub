@@ -23,6 +23,10 @@ pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.ap
 # check if dir exists to dump processed files
 if ( !dir.exists(here::here("data_out") ) ) {
   dir.create(here::here("data_out") ) }
+if ( !dir.exists(here::here("data_in") ) ) {
+  dir.create(here::here("data_in") ) }
+if ( !dir.exists(here::here("data_in", "meeting_decision_json") ) ) {
+  dir.create(here::here("data_in", "meeting_decision_json") ) }  
 
 
 ###--------------------------------------------------------------------------###
