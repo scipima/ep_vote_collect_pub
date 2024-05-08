@@ -1,0 +1,187 @@
+---
+title: "Shares of Votes "
+date: "`r Sys.Date()`"
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    toc-title: Contents
+    number-sections: true
+    colorlinks: true
+editor_options: 
+  chunk_output_type: console
+execute:
+  echo: false
+  warning: false
+---
+
+## Intro
+```{r misc}
+#| include: false
+
+###--------------------------------------------------------------------------###
+# rm(list = ls())
+start_report <- Sys.time()
+
+###--------------------------------------------------------------------------###
+## Libraries -------------------------------------------------------------------
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.apply",
+                        "here", "lubridate", "janitor", "ggplot2", "duckdb", "duckplyr") )
+
+###--------------------------------------------------------------------------###
+# Graphics ---------------------------------------------------------------------
+vote_colours <- c(`for` = '#00AEEF',
+                  against = '#BE3455',
+                  abstain = "#969696",
+                  `no vote` = '#5D5CA4',
+                  absent = '#F47920')
+
+###--------------------------------------------------------------------------###
+# Functions --------------------------------------------------------------------
+###--------------------------------------------------------------------------###
+# Load join functions ---------------------------------------------------------#
+source(file = here::here("source_scripts_r", "join_functions.R") )
+# get vector of independents
+independents_ids <- national_parties$identifier[
+  grepl(pattern = "^-$|^Ind.$|^Indépendant$|^Independent$|^Independiente$", 
+        x = national_parties$label)
+  | grepl(pattern = "^-$|^Ind.$|^Indépendant$|^Independent$|^Independiente$", 
+          x = national_parties$pref_label_en)]
+independents <- c("-", "Ind.", "Indépendant", "Independent", "Independiente")
+
+
+# Calculate Majorities --------------------------------------------------------#
+source(file = here::here("source_scripts_r", "get_majority.R") )
+```
+
+The objective of this short note is to showcase some of the possible use cases of the data gathered via the [EP Open Data Portal API](https://data.europarl.europa.eu/en/developer-corner/opendata-api).
+
+
+## Data and Methods
+We include in our analysis all voting data relative to RCVs during the period 2019-`r data.table::year(Sys.Date())`.
+```{r}
+#| include: false
+
+###--------------------------------------------------------------------------###
+## Read data -------------------------------------------------------------------
+### RCV ------------------------------------------------------------------------
+meps_rcv_mandate <- data.table::fread( here::here("data_out", "meps_rcv_mandate.csv") ) 
+
+# Fix change of name of `The Left`
+meps_rcv_mandate[polgroup_id == 5151L, polgroup_id := 6259L]
+```
+
+### Patterns of for, against, and abstain votes during the 9th EP mandate
+```{r}
+meps_rcv_mandate[is_novote == 1L, result_fct := "no vote"]
+# meps_rcv_mandate[is_absent == 1L, result_fct := "absent"]
+meps_rcv_mandate[result == 1L, result_fct := "for"]
+meps_rcv_mandate[result == 0L, result_fct := "abstain"]
+meps_rcv_mandate[result == -1L, result_fct := "against"]
+meps_rcv_mandate[, result_fct := as.factor(result_fct)]
+
+# convert to DuckDB to check performance
+# meps_rcv_mandate_ddb <- duckplyr::as_duckplyr_df( as.data.frame( meps_rcv_mandate) )
+# str(meps_rcv_mandate_ddb)
+#' this is currently pointless, as `duckplyr` does not support the `.drop` argument
+
+tictoc::tic()
+# create a fake grid to merge 
+# rcvid_resultfct <- expand.grid(
+#   rcv_id = unique(meps_rcv_mandate$rcv_id),
+#   polgroup_id = unique(meps_rcv_mandate$polgroup_id),
+#   result_fct = unique(meps_rcv_mandate$result_fct) )
+
+# Right outer join
+# meps_rcv_mandate_fct <- meps_rcv_mandate[
+#   rcvid_resultfct, 
+#   on = .(rcv_id, polgroup_id, result_fct)]
+
+# Aggregate
+cum_shares <- meps_rcv_mandate_fct[
+  !is.na(result_fct),
+  list(summ = .N), 
+  keyby = list(rcv_id, polgroup_id, result_fct)
+][
+  , cum_summ := cumsum(summ),
+  by = list(polgroup_id, result_fct)
+][
+  , tot := sum(cum_summ),
+  by = list(rcv_id, polgroup_id)
+][
+  , share := cum_summ / tot
+][
+  # https://stackoverflow.com/questions/16519438/keeping-zero-count-combinations-when-aggregating-with-data-table?noredirect=1&lq=1
+  CJ(
+    unique( meps_rcv_mandate$rcv_id),
+    unique( meps_rcv_mandate$polgroup_id),
+    na.omit( unique( meps_rcv_mandate$result_fct) )  
+  ) ][
+  is.na(share), share := 0
+] |>
+  join_polit_labs()
+
+cum_shares[ 
+  !is.na(share) 
+  | !is.na(political_group),] |> 
+  ggplot(aes(x=rcv_id, y =share, colour = result_fct)) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~political_group, nrow = 2) +
+  scale_colour_manual(values = vote_colours) +
+  labs(
+    title = "Votes Cumulative Shares by EP Political Group",
+    caption = "Only RCVs in Plenary during the EP's 9th mandate. The 'no vote' share is measured by checking whether, albeit the MEP was present during the Plenary, he/she did not vote",
+    colour="", x="RCVs", y="cumulative share, %") +
+    scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  theme(plot.title.position = "plot",
+        plot.title = element_text(face = "bold"),
+        legend.text = element_text(face="bold"),
+        legend.position = "top")
+
+tictoc::toc()
+```
+
+
+```{r}
+#| eval: false
+
+# check timing for this, but likely to take way longer than DT version
+tictoc::tic()
+tallies <- meps_rcv_mandate |>
+  filter(!is.na(result_fct)) |> 
+  group_by(rcv_id, polgroup_id, result_fct,
+           .drop = FALSE) |> # this is essential to get also the 0 cells
+  summarise(summ = n()) |>
+  ungroup()
+cum_shares <- tallies |> 
+  group_by(polgroup_id, result_fct) |> 
+  mutate(cum_summ = cumsum(summ)) |> 
+  ungroup() |> 
+  group_by(, rcv_id, polgroup_id) |> 
+  mutate(tot = sum(cum_summ)) |> 
+  ungroup() |> 
+  mutate(share = cum_summ / tot) |> 
+  arrange(rcv_id) |> 
+  join_polit_labs()
+
+cum_shares |> 
+  filter(!is.na(share), !is.na(political_group)) |> 
+  ggplot(aes(x=rcv_id, y =share, colour = result_fct)) +
+  geom_line() +
+  facet_wrap(~political_group, nrow = 2) +
+  theme(legend.position = "top")
+tictoc::toc()
+```
+
+
+## Reproducibility information
+```{r}
+# reproducibility info
+sessionInfo()
+# rendering time
+end_report <- Sys.time()
+end_report - start_report
+```

@@ -250,4 +250,4 @@ data.table::fwrite(x = meps_rcv_mandate,
 
 
 # remove objects --------------------------------------------------------------#
-rm( meps_dates_ids, meps_mandate, meps_rcv_grid, resp_list, url_list_tmp)
+rm( meps_dates_ids, meps_mandate, meps_rcv_grid, resp_list, url_list_tmp )
