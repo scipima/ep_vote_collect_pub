@@ -1,0 +1,178 @@
+---
+title: "Explaining variance in EP RCVs: The role of EP Political Groups v Country"
+author: Marco Scipioni
+date: "`r Sys.Date()`"
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    toc-title: Contents
+    number-sections: true
+    colorlinks: true
+editor_options: 
+  chunk_output_type: console
+execute:
+  echo: false
+  warning: false
+---
+
+## Intro
+```{r misc}
+#| include: false
+
+###--------------------------------------------------------------------------###
+# rm(list = ls())
+start_report <- Sys.time()
+
+###--------------------------------------------------------------------------###
+## Libraries -------------------------------------------------------------------
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.apply",
+                        "here", "lubridate", "janitor", "ggplot2", "duckdb", "duckplyr") )
+
+###--------------------------------------------------------------------------###
+# Graphics ---------------------------------------------------------------------
+vote_colours <- c(`for` = '#00AEEF',
+                  against = '#BE3455',
+                  abstain = "#969696",
+                  `no vote` = '#5D5CA4',
+                  absent = '#F47920')
+
+###--------------------------------------------------------------------------###
+# Functions --------------------------------------------------------------------
+###--------------------------------------------------------------------------###
+# Load join functions ---------------------------------------------------------#
+source(file = here::here("source_scripts_r", "join_functions.R") )
+# get vector of independents
+independents_ids <- national_parties$identifier[
+  grepl(pattern = "^-$|^Ind.$|^Indépendant$|^Independent$|^Independiente$", 
+        x = national_parties$label)
+  | grepl(pattern = "^-$|^Ind.$|^Indépendant$|^Independent$|^Independiente$", 
+          x = national_parties$pref_label_en)]
+independents <- c("-", "Ind.", "Indépendant", "Independent", "Independiente")
+
+
+# Calculate Majorities --------------------------------------------------------#
+source(file = here::here("source_scripts_r", "get_majority.R") )
+```
+
+The objective of this short note is to showcase some of the possible use cases of the data gathered via the [EP Open Data Portal API](https://data.europarl.europa.eu/en/developer-corner/opendata-api).
+In this brief note, we seek tackle - in perhaps a very simplistic manner - the old question of whether country interests or political groupings tend to explain the variation we see in RCVs. 
+
+
+## Data and Methods
+We include in our analysis all voting data relative to RCVs during the period 2019-`r data.table::year(Sys.Date())`.
+```{r}
+#| include: false
+
+###--------------------------------------------------------------------------###
+## Read data -------------------------------------------------------------------
+### RCV ------------------------------------------------------------------------
+meps_rcv_mandate <- data.table::fread( here::here("data_out", "meps_rcv_mandate.csv") ) 
+# Fix change of name of `The Left`
+meps_rcv_mandate[polgroup_id == 5151L, polgroup_id := 6259L]
+
+# Fix change of name of `The Left`
+meps_rcv_mandate[polgroup_id == 5151L, polgroup_id := 6259L]
+```
+
+### Patterns of `for`, `against`, and `abstain` votes during the 9th EP mandate
+After converting the votes - stored in the `result` variable - into factor, and having also included the occurrences of `no vote` (that is to say, when a MEP is present but does not vote), we tabulate the variable to have an appreciation of the distribution. 
+```{r}
+meps_rcv_mandate[is_novote == 1L, result_fct := "no vote"]
+# meps_rcv_mandate[is_absent == 1L, result_fct := "absent"]
+meps_rcv_mandate[result == 1L, result_fct := "for"]
+meps_rcv_mandate[result == 0L, result_fct := "abstain"]
+meps_rcv_mandate[result == -1L, result_fct := "against"]
+meps_rcv_mandate[, result_fct := as.factor(result_fct)]
+
+knitr::kable(
+  meps_rcv_mandate[!is.na(result_fct), list(.N), by = result_fct
+                 ][
+                   , total_votes := sum(N)
+                 ][, share := N / total_votes][
+                   , total_votes := NULL
+                 ][] )
+```
+
+## Deviance by EP Political Groups
+The simple idea is to calculate the `residual deviance` for two different multinomial models - one having just country as predictor, the other with EP Political Groups.
+The *model achieving the lowest deviance is the one able to account for more variance in the outcome*. 
+For a textbook introduction to deviance, see [Agresti and Kateri (2022), Section 7.1](https://www.routledge.com/Foundations-of-Statistics-for-Data-Scientists-With-R-and-Python/Agresti-Kateri/p/book/9780367748456?utm_source=website&utm_medium=shared_link&utm_campaign=B027593_jm1_5ll_8pm_d765_foundationsofstatisticsfordatascientists).
+To make things simpler, we drop the `no vote` value in the outcome variable.
+```{r}
+# subset data and convert variables
+df_model <- meps_rcv_mandate[!is.na(result)]
+# convert to factor and set reference level
+df_model$result <- relevel(factor(df_model$result), ref = "0")
+df_model$year <- as.factor(data.table::year(df_model$activity_date))
+df_model$polgroup_id <- as.factor(df_model$polgroup_id)
+
+
+# models ----------------------------------------------------------------------#
+library(nnet)
+mod_polgroup <- nnet::multinom(formula = result ~ polgroup_id,
+                               data = df_model, Hess = FALSE)
+# summary(mod_polgroup)
+```
+
+The residual deviance of such model is
+```{r}
+# collect deviance
+mod_polgroup_dev <- deviance(mod_polgroup) ; mod_polgroup_dev
+```
+
+On its own, this number has little meaning.
+However, we can better appreciate in the context of a comparison with a baseline model with only the intercept.
+```{r}
+# Test whether nested models are significant
+lrtest_polgroup <- lmtest::lrtest(mod_polgroup); lrtest_polgroup
+```
+
+To develop an intuition about what is going on, the statistical test above compare the deviance in the baseline model (i.e. the one without predictor) with the one that we chose, and then checks it against the chi-square distribution.
+The *p* value reported can be interpreted as the chances of seeing such chi-square value were the null hypothesis true. 
+In the case at hand, we *p* value is minuscule so we reject the null.
+
+
+## Deviance by Country
+We now conduct the same exercise as above, only this time substituting country instead of EP Political Groups.
+```{r}
+# models ----------------------------------------------------------------------#
+mod_country <- nnet::multinom(formula = result ~ country,
+                              data = df_model, Hess = FALSE)
+# summary(mod_country)
+
+# collect deviance
+mod_country_dev <- deviance(mod_country); mod_country_dev
+```
+
+The residual deviance of the country-based model is higher than in the previous case.
+```{r}
+# Test whether nested models are significant
+lrtest_country <- lmtest::lrtest(mod_country)
+```
+
+For a further comparison, we can check the AIC metrics for the two models (remember: lower is better).
+Again, we notice that the political groups-based model seems to perform better.
+```{r}
+# mod_polgroup
+stats::AIC(mod_polgroup)
+# mod_country
+stats::AIC(mod_country)
+
+# remove objects
+rm(mod_polgroup, mod_country); gc()
+```
+
+As a next step, we could check whether we find evidence that the performance of these models changes over time, for instance by interacting the predictors with years. 
+
+
+## Reproducibility information
+```{r}
+# reproducibility info
+sessionInfo()
+# rendering time
+end_report <- Sys.time()
+end_report - start_report
+```
