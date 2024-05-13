@@ -112,7 +112,7 @@ who_won_house_polgroup |>
         axis.text.y = element_text(face = "bold"),
         axis.ticks = element_blank())
 ggsave(here::here("figures", "polgroup_winshares.pdf"), dpi=300, device = "pdf", height=4, width=8) 
-ggsave(here::here("figures", "polgroup_winshares.jpeg"), dpi=300, device = "jpeg", height=4, width=8)        
+ggsave(here::here("figures", "polgroup_winshares.png"), dpi=300, device = "png", height=4, width=8)        
 ```
 
 
