@@ -15,7 +15,7 @@
 
 ###--------------------------------------------------------------------------###
 ## Libraries -------------------------------------------------------------------
-if (!require("pacman")) install.packages("pacman")
+if ( !require("pacman") ) install.packages("pacman")
 pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.apply",
                         "httr", "here", "lubridate", "janitor", "jsonlite") )
 

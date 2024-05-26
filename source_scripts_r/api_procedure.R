@@ -34,7 +34,7 @@ head(req$data)
 procedures_df <- req$data |>
     data.table::rbindlist(use.names = TRUE, fill = TRUE) |>
     dplyr::mutate(process_type = gsub(pattern = "def/ep-procedure-types/",
-                                    replacement = "", x = process_type) ) |> 
+                                    replacement = "", x = process_type) ) |>
   dplyr::select(-type)
 # check
 # sapply(procedures_df, function(x) sum(is.na(x)))
@@ -61,7 +61,7 @@ resp_list <- lapply(
                nm = process_ids),
   FUN = function(i_param) {
     print(i_param)
-    # Creae an API request
+    # Create an API request
     req <- httr2::request("https://data.europarl.europa.eu/api/v2") |>
       httr2::req_url_path_append("procedures") |>
       httr2::req_url_path_append(i_param) |>
