@@ -43,11 +43,11 @@ procedures_df <- req$data |>
 data.table::fwrite(x = procedures_df,
                    file = here::here("data_out", "procedures.csv") )
 
-# Remove API objects --------------------------------------------------------###
+# Remove API objects ----------------------------------------------------------#
 rm(req)
 
 
-###--------------------------------------------------------------------------###
+#------------------------------------------------------------------------------#
 ## GET/procedures/{proc-id} ----------------------------------------------------
 # Returns a single EP Procedure for the specified proc-ID
 # EXAMPLE: https://data.europarl.europa.eu/api/v2/procedures/2018-0218?format=application%2Fld%2Bjson
@@ -80,5 +80,3 @@ resp_list <- lapply(
 
 # append list
 process_ids <- data.table::rbindlist(l = resp_list, use.names = TRUE, fill = TRUE)
-
-
