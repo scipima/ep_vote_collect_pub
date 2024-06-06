@@ -95,7 +95,7 @@ hasMembership <- lapply(
       tidyr::unnest(hasMembership, keep_empty = TRUE) |>
       tidyr::unnest_wider(memberDuring, names_sep = "_") } ) |>
   data.table::rbindlist(use.names = TRUE, fill = TRUE) |>
-  dplyr::select(-contactPoint) |>
+  dplyr::select( -dplyr::any_of( "contactPoint" ) ) |>
   dplyr::mutate(pers_id = as.integer(pers_id)) |>
   janitor::clean_names()
 # unique(hasMembership$membership_classification)
