@@ -73,7 +73,7 @@ get_mep_id <- function(links = url_list_tmp) {
   future.apply::future_lapply(
     X = links, FUN = function(i_url) {
       print(i_url$url) # check
-      if ( !httr::status_code(i_url) %in% c(403L, 404L) ) {
+      if ( httr::status_code(i_url) %in% c(200L) ) {
         # Get data from .json
         api_list <- jsonlite::fromJSON( rawToChar(i_url$content) )
         # extract info
@@ -236,4 +236,3 @@ rm(hasMembership, meps_data_grid, meps_dates, meps_mandate, meps_start_end, meps
 
 # test:before brexit, N should be 751; after brexit, 705
 # meps_dates_ids[, .N, keyby = list(activity_date)]
-

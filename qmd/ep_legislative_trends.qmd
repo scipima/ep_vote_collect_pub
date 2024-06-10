@@ -1,0 +1,340 @@
+---
+title: "Legislative Trends in the EP's 9th Mandate"
+author:
+  - Marco SCIPIONI
+date: "`r Sys.Date()`"
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 4
+    toc-title: Contents
+    number-sections: true
+    colorlinks: true
+editor_options: 
+  chunk_output_type: console
+execute:
+  echo: false
+  warning: false
+---
+
+## Intro
+```{r misc}
+#| include: false
+
+###--------------------------------------------------------------------------###
+## Libraries -------------------------------------------------------------------
+library(tidyverse)
+library(tidytext)
+library(data.table)
+library(here)
+
+
+###--------------------------------------------------------------------------###
+## Functions -------------------------------------------------------------------
+
+# Mode ------------------------------------------------------------------------#
+# https://stackoverflow.com/questions/2547402/how-to-find-the-statistical-mode
+stat_mode <- function(x) {
+  if ( length(x) <= 2 ) return(x[1])
+  if ( anyNA(x) ) x = x[!is.na(x)]
+  ux <- unique(x)
+  ux[ which.max( tabulate( match(x, ux) ) ) ] }
+
+# Load join functions ---------------------------------------------------------#
+source(file = here::here("source_scripts_r", "join_functions.R") )
+# get vector of independents
+independents_ids <- national_parties$identifier[
+  grepl(pattern = "^-$|^Ind.$|^Indépendant$|^Independent$|^Independiente$", 
+        x = national_parties$label)
+  | grepl(pattern = "^-$|^Ind.$|^Indépendant$|^Independent$|^Independiente$", 
+          x = national_parties$pref_label_en)]
+independents <- c("-", "Ind.", "Indépendant", "Independent", "Independiente")
+
+# Calculate Majorities --------------------------------------------------------#
+source(file = here::here("source_scripts_r", "get_majority.R") )
+
+
+###--------------------------------------------------------------------------###
+## Graphics --------------------------------------------------------------------
+# set theme globally for ggplots --------------------------------------------###
+# https://stackoverflow.com/questions/34522732/changing-fonts-in-ggplot2
+# theme_set(theme_minimal(base_size = 10, 
+#                         base_family = "roboto"))
+
+# associate colours to EP political groups ----------------------------------###
+polgroups <- c("Renew", "EPP", "S&D", "Greens/EFA", "ID", "ECR", "The Left", "NI")
+polgroups_colours <- data.frame(
+  polgroups_fullname = c(
+    "Renew Europe Group", 
+    "Group of the European People's Party (Christian Democrats)", 
+    "Group of the Progressive Alliance of Socialists and Democrats in the European Parliament",
+    "Group of the Greens/European Free Alliance",
+    "Identity and Democracy Group",
+    "European Conservatives and Reformists Group",
+    "The Left group in the European Parliament - GUE/NGL",
+    "Non-attached Members"), 
+  polgroups = polgroups,
+  polgroups_labs = c("renew", "epp", "s_d", "greens_efa", "id", "ecr", "the_left", "ni"),
+  polgroups_labs_EP = c("Renew", "EPP", "S&D", "Greens/EFA", "ID", "ECR", "The Left", "NI"),
+  ep_cols = c("#fed976", "#045a8d", "#f03b20", "#238b45", "#9ecae1", "#4292c6", "#7f2704", "#bdbdbd")) 
+polgroups_colours_vct <- setNames(object = polgroups_colours$ep_cols,
+                                  nm = polgroups_colours$polgroups_labs_EP)
+
+# vote colours  -------------------------------------------------------------###
+vote_colours <- c(For = '#00AEEF',
+                  Against = '#BE3455',
+                  Abstain = "#969696",
+                  `Did not vote` = '#5D5CA4',
+                  Absent = '#F47920')
+```
+
+The objective of this short note is to investigate legislative trends during the EP's 9th mandate.
+
+**Please keep in mind** that this document is the *sole property of the Renew Group* and *should not be disseminated to other people or organisations*.
+
+
+## Data and Methods
+```{r}
+#| include: false
+
+###--------------------------------------------------------------------------###
+## Read data -------------------------------------------------------------------
+### RCV ------------------------------------------------------------------------
+rcv_attendance <- data.table::fread(
+  file = here::here("data_out", "rcv_attendance.csv"), 
+  colClasses = list(
+    character = c("country"),
+    integer = c("result", "rcv_id", "pers_id", "polgroup_id", "natparty_id", 
+                "attendance"),
+    IDate = c("activity_date") ),
+  encoding = "UTF-8", na.strings = c(NA_character_, ""), verbose = TRUE, 
+  key = c("activity_date", "rcv_id", "pers_id") )
+
+rcv_attendance[polgroup_id == 5151L, polgroup_id := 6259L]
+
+# Votes
+votes_allsessions <- data.table::fread(
+  here::here("data_out", "vote", "votes_allsessions.csv") ) |> 
+  dplyr::select( -c(session, date) ) |> 
+  dplyr::distinct()
+
+n_votes <- nrow(votes_allsessions)
+n_rcv <- length( unique( rcv_attendance$rcv_id ) )
+
+###--------------------------------------------------------------------------###
+# Load join functions ---------------------------------------------------------#
+source(file = here::here("source_scripts_r", "join_functions.R") )
+
+# Calculate Majorities --------------------------------------------------------#
+source(file = here::here("source_scripts_r", "get_majority.R") )
+
+
+###--------------------------------------------------------------------------###
+### MEPs mandate ---------------------------------------------------------------
+meps_mandate <- data.table::fread(
+  here::here("data_out", "meps", "meps_mandate.csv") )
+
+### MEPs now ---------------------------------------------------------------------
+meps_current <- data.table::fread(
+  here::here("data_out", "meps", "meps_current_full.csv"))
+
+###--------------------------------------------------------------------------###
+# MEPs and parties: full list for the entire mandate ------------------------###
+# get the unique combinations of national parties and political groups from RCV data
+meps_full_list <- unique(
+  rcv_attendance[, list(country, pers_id, polgroup_id, natparty_id) ] ) |> 
+  join_polit_labs() |> 
+  join_meps_names()
+```
+
+We include in our analysis all voting data relative to roll-call votes (RCVs) during the period 2019-`r data.table::year(Sys.Date())`.
+To provide some context, we currently have `r length(unique(rcv_attendance$rcv_id))` RCVs in our database, for `r length(unique(rcv_attendance$activity_date))` Plenary dates.
+It is important to appreciate that what we have is only a subset of the all legislation being adopted. 
+Indeed, the EP recognises different forms of voting - such as *raise of hands*, or *electronic votes* - but RCVs are the only ones where we able to trace votes to individual MEPs - that is, they are so-called *nominal* votes. 
+As a rough approximation, if we take out the likely duplicate rows from the voting archives, RCVs were approximately `r round(n_rcv/n_votes*100, digits=1)`% of the total votes during this mandate.
+
+
+## Overall direction of the proposed legislation
+First, we try to understand what share of legislation each Political Group could agree with.
+This would gives a rough approximation of the overall ideological colour of the legislative flow in the House during this mandate. 
+```{r}
+#| fig-width: 8
+#| fig-height: 3
+
+#------------------------------------------------------------------------------#
+# Recode
+rcv_attendance[is_novote == 1L, result_fct := "no vote"]
+rcv_attendance[is_absent == 1L, result_fct := "absent"]
+rcv_attendance[result == 1L, result_fct := "for"]
+rcv_attendance[result == 0L, result_fct := "abstain"]
+rcv_attendance[result == -1L, result_fct := "against"]
+rcv_attendance[, result_fct := factor(result_fct,
+                                      levels = c("absent", "no vote", "abstain", 
+                                                 "against", "for") ) ]
+# Tallies
+res_tmp <- rcv_attendance[
+  !is.na(polgroup_id),
+  .N,
+  by = list(polgroup_id, result_fct)
+][
+  , summ := sum(N),
+  by = list(polgroup_id)
+][
+  , share := N / summ,
+] |> 
+  join_polit_labs() |> 
+  dplyr::arrange(share)
+
+# Plot rank
+plot_rank <- res_tmp$political_group[res_tmp$result_fct=="for"]
+
+res_tmp |> 
+  dplyr::filter(result_fct == "for") |> 
+  ggplot(aes(x = share,
+             y = factor( political_group, levels = plot_rank ) ) ) +
+  geom_col(colour = "black", fill = "grey", linewidth=0.1) +
+  geom_text(aes(label = round(share*100, digits = 1)), hjust = -0.1) +
+  labs(
+    title = "Shares of 'for' votes by EP Political Group",
+    caption = stringr::str_wrap(
+      "Source: EP Public Registry. Notes: Only RCVs in Plenary during the EP's 9th mandate.",
+      width = 140),
+    x="Share, %", y="") +
+  scale_x_continuous(labels = scales::percent) +
+  # coord_flip() +
+  theme_minimal() +
+  theme(plot.title.position = "plot",
+        plot.title = element_text(face = "bold"),
+        legend.text = element_text(face="bold"),
+        axis.text.y = element_text(face = "bold"),
+        legend.position = "top")
+```
+
+By just looking at the rate of approval of *proposed* legislation, one would conclude that this mandate has been tilted towards left-leaning policies, with The Greens, S&D, and The Left having the highest rate of approval.
+Put differently, and to give a concrete example, of all the Reports, Resolutions, etc. as well as their Amendments, the Greens could agree with about 63%. 
+That means that the wording of the proposed legislation was in such a way that the Greens could agree with it in about 63% of the cases.
+However, this is just what was *proposed*, not what was *agreed upon*.
+To understand that, we need to look at the approved legislation.
+
+
+## Part of a winning coalition
+Out of the legislation we can trace back to political groups, what's the share of winners? 
+This would tell us how much of the ***adopted*** legislation is actually shaped by any political groups.
+```{r}
+#| fig-width: 8
+#| fig-height: 3
+
+###--------------------------------------------------------------------------###
+# RCV metadata
+rcv_metadata <- data.table::fread(
+  file = here::here("data_out", "rcv", "rcvid_metadata.csv"),
+  encoding = "UTF-8", na.strings = c(NA_character_, ""), 
+  key = c("rcv_id"), select = c("rcv_id", "doc_id", "rcv_descriptiontext") )
+# str(rcv_metadata)
+
+# join long RCV with metadata
+rcv_attendance <- rcv_attendance[rcv_metadata[, ], on = list(rcv_id)]
+# sapply(rcv_attendance, function(x) sum(is.na(x))) # check
+
+
+###--------------------------------------------------------------------------###
+# Get House majority
+who_won_house <- get_house_majority(data_in = rcv_attendance[!is.na(result)])
+# Get the Groups' majority by rcv_id
+who_won_bypolgroup <- get_polgroup_majority()
+
+
+###--------------------------------------------------------------------------###
+## calculate similarity --------------------------------------------------------
+# merge group line with party vote ------------------------------------------###
+who_won_house_polgroup <- merge(
+  x = who_won_house,
+  y = who_won_bypolgroup, 
+  by = c("rcv_id", "doc_id"), all = TRUE) |> 
+  join_polit_labs()
+
+# Are Group and party majorities the same? ----------------------------------###
+who_won_house_polgroup[, is_similar := as.integer(result.x == result.y)] 
+who_won_group_mean <- who_won_house_polgroup[, list(
+  avg = mean(is_similar, na.rm = TRUE)),
+  by = list(political_group)][order(-avg)]
+
+# plot
+who_won_group_mean |> 
+  dplyr::mutate(political_group = fct_reorder(.f = political_group, .x = avg)) |> 
+  ggplot(aes(x=political_group, y = avg)) +
+  geom_col(colour = "black", fill = "grey80", linewidth = 0.1) +
+  geom_text(aes(label = round(avg*100, digits = 1)), nudge_y = 0.03) +
+  coord_flip() +
+  labs(
+    x="", y="Winning Majority (%)", fill="",
+    title = str_wrap(
+      "How often does the majority within each Political Group happen to be on the winning side?", 
+      width = 88),
+    caption = stringr::str_wrap(
+      "Source: EP Public Registry. Notes: Only RCVs in Plenary during the EP's 9th mandate.",
+      width = 120)
+  ) +  
+  guides(fill = guide_legend(nrow = 1)) +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  theme(plot.title.position = "plot",
+        plot.title = element_text(face = "bold"),
+        legend.position = "top",
+        # strip.text.y.right = element_text(angle = 0, face = "bold"),
+        axis.text.y = element_text(face = "bold"))
+```
+
+The graph tells us that Renew was the Group with the highest share of winning votes, meaning that about 93% of the times its majority was siding with majority in the House.
+This is followed by S&D and EPP.
+
+In a way, these numbers reveal to us the political clout of the different Groups, as they are not about whether a Group agreed with a given piece of legislation, but whether they were able to adopt or block one if they did not agree with it. 
+
+With that intuition, we can go back to our first graph and modify our calculations to include not only the votes where the Groups' majorities voted '*for*', but also how many of these '*for*' majorities ended up being approved by the EP. 
+```{r}
+#| fig-width: 8
+#| fig-height: 3
+
+###--------------------------------------------------------------------------###
+share_forwin <- who_won_house_polgroup |> 
+  dplyr::mutate(
+    is_forwin = ifelse(test = result.x == 1L & result.y == 1L,
+                       yes = 1L, no = 0L) ) |> 
+  dplyr::group_by(political_group) |> 
+  dplyr::summarise(
+    sum_forwin = sum(is_forwin, na.rm = TRUE),
+    sum_for = sum(result.y[result.y == 1], na.rm = TRUE),
+    avg = mean(is_forwin, na.rm = TRUE) ) |> 
+  dplyr::ungroup()|> 
+  dplyr::mutate(share = sum_forwin/sum_for) |> 
+  dplyr::arrange( desc( avg) )
+
+dplyr::bind_rows(
+  res_tmp |> 
+    dplyr::filter(result_fct == "for") |> 
+    dplyr::select(political_group, share) |> 
+    dplyr::mutate(type = "Share of for"), 
+  share_forwin |> 
+    dplyr::select(political_group, share) |> 
+    dplyr::mutate(type = "Share of winning for") ) |> 
+  ggplot(aes(x = share,
+             y = factor( political_group, levels = plot_rank ) ) ) +
+  geom_col(colour = "black", fill = "grey", linewidth=0.1) +
+  geom_text(aes(label = round(share*100, digits = 1)), hjust = -0.1) +
+  facet_wrap(~type) +
+  labs(
+    title = "Shares of 'for' votes and winning 'for' by EP Political Group",
+    caption = stringr::str_wrap(
+      "Source: EP Public Registry. Notes: Only RCVs in Plenary during the EP's 9th mandate.",
+      width = 140),
+    fill="", x="Share, %", y="") +
+  scale_x_continuous(labels = scales::percent, limits = c(0, 1.05)) +
+  # xlim() +
+  theme_minimal() +
+  theme(plot.title.position = "plot",
+        plot.title = element_text(face = "bold"),
+        legend.text = element_text(face="bold"),
+        axis.text.y = element_text(face = "bold"),
+        legend.position = "top")
+```
