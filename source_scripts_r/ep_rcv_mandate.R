@@ -185,10 +185,11 @@ meps_rcv_grid <- merge(
 
 
 # merge grid with RCV data
-meps_rcv_mandate <- merge(x = meps_rcv_grid[, list(notation_votingId, pers_id)],
-                          y = rcv_dt,
-                          by = c("notation_votingId", "pers_id"),
-                          all = TRUE) |>
+meps_rcv_mandate <- merge(
+  x = meps_rcv_grid[, list(activity_date, notation_votingId, pers_id)],
+  y = rcv_dt,
+  by = c("activity_date", "notation_votingId", "pers_id"),
+  all = TRUE) |>
   data.table::as.data.table()
 # sapply(meps_rcv_mandate, function(x) sum(is.na(x)))
 
@@ -204,12 +205,12 @@ if ( nrow(meps_rcv_mandate) > nrow(meps_rcv_grid) ) {
 #' ABSENT: if both `result` and `vote_intention` are NA, then `is_absent` = 1
 meps_rcv_mandate[, is_absent := data.table::fifelse(
   test = is.na(vote_intention) & is.na(result), yes = 1L, no = 0L)]
-# unique(meps_rcv_mandate$is_absent)
+# table(meps_rcv_mandate$is_absent)
 
 #' True absent are absent the entire day, so take the average of `is_absent`
 meps_rcv_mandate[, is_absent_avg := mean(is_absent, na.rm = TRUE),
-                 by = list(activity_date, pers_id)]
-# head(sort(unique(meps_rcv_mandate$is_absent_avg)))
+                 by = list(activity_date, pers_id) ]
+# head( sort( unique(meps_rcv_mandate$is_absent_avg) ) )
 
 #' Convert `is_absent` to binary
 meps_rcv_mandate[, is_absent := data.table::fifelse(
@@ -225,31 +226,37 @@ meps_rcv_mandate[, is_novote := data.table::fifelse(
 # table(meps_rcv_mandate$result, meps_rcv_mandate$is_novote, exclude = NULL) # check
 # table(meps_rcv_mandate$vote_intention, meps_rcv_mandate$is_absent, exclude = NULL) # check
 # table(meps_rcv_mandate$vote_intention, meps_rcv_mandate$is_novote, exclude = NULL) # check
+# table(meps_rcv_mandate$vote_intention, meps_rcv_mandate$result, exclude = NULL) # check
 
-# Drop col --------------------------------------------------------------------#
+# Recode
+meps_rcv_mandate[is_absent == 1L, result := -3L]
+meps_rcv_mandate[is_novote == 1L, result := -2L]
+
+# Vote data dictionary --------------------------------------------------------#
+data.frame(
+  result = -3 : 1,
+  result_fct = c("absent", "no_vote", "against", "abstain", "for") ) |>
+  data.table::fwrite(file = here::here("data_out", "vote_dict.csv"))
+
+
+#------------------------------------------------------------------------------#
+# Get the last configuration of the EP
+data.table::fwrite(
+  x = unique(meps_rcv_mandate[
+    activity_date == max(activity_date, na.rm = TRUE),
+    list(pers_id, natparty_id, polgroup_id, country)]),
+  file = here::here("data_out", "meps_lastplenary.csv"), verbose = TRUE)
+
+
+# Drop cols --------------------------------------------------------------------#
 # We've kept the date col so far because we need it to create several vars above
-meps_rcv_mandate[, activity_date := NULL]
+meps_rcv_mandate[, c("activity_date", "is_novote", "is_absent") := NULL]
 
 
-# sort table
+# sort table ------------------------------------------------------------------#
 data.table::setkeyv(x = meps_rcv_mandate,
                     cols = c("notation_votingId", "pers_id"))
 # sapply(meps_rcv_mandate, function(x) sum(is.na(x)))
-
-
-# Fill in cols ----------------------------------------------------------------#
-
-#' There are 2 MEPs who have a mistmatch between national party and political group membership.
-#' They are: https://www.europarl.europa.eu/meps/en/228604/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep; https://www.europarl.europa.eu/meps/en/226260/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep
-#' We fix the data gaps here.
-
-# cols_tofill <- c("country", "polgroup_id", "natparty_id")
-# meps_rcv_mandate <- meps_rcv_mandate |>
-#   dplyr::group_by(pers_id) |>
-#   tidyr::fill(tidyselect::any_of(cols_tofill),
-#               .direction = "downup") |>
-#   dplyr::ungroup() |>
-#   data.table::as.data.table()
 
 # Rename cols -----------------------------------------------------------------#
 data.table::setnames(x = meps_rcv_mandate,

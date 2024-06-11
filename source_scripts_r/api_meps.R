@@ -226,7 +226,7 @@ meps_dates_ids[pers_id == 185974L & is.na(polgroup_id),
 data.table::setnames(meps_dates_ids, old = c("represents"), new = c("country"))
 
 # Get Country dictionary -------------------------------------------------------
-country_dt <- data.frame(
+country_dict <- data.frame(
   country = sort(unique(meps_dates_ids$country)),
   country_id = seq_along(unique(meps_dates_ids$country) ) )
 
@@ -239,8 +239,8 @@ meps_dates_ids[, country := NULL]
 # write to disk ---------------------------------------------------------------#
 data.table::fwrite(x =  meps_dates_ids,
                    file = here::here("data_out", "meps_dates_ids.csv"))
-data.table::fwrite(x =  country_dt,
-                   file = here::here("data_out", "country_dt.csv"))
+data.table::fwrite(x =  country_dict,
+                   file = here::here("data_out", "country_dict.csv"))
 
 # remove intermediate objects
 rm(hasMembership, meps_data_grid, meps_dates, meps_mandate, meps_start_end, meps_ids_list,
