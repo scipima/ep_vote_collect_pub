@@ -21,16 +21,19 @@ pacman::p_load(char = c("data.table", "dplyr", "tidyr", "tidyselect", "future.ap
 
 # repo set-up -----------------------------------------------------------------#
 # check if dir exists to dump processed files
-if ( !dir.exists(here::here("data_out") ) ) {
-  dir.create(here::here("data_out") ) }
-if ( !dir.exists(here::here("data_in") ) ) {
-  dir.create(here::here("data_in") ) }
-if ( !dir.exists(here::here("data_in", "meeting_decision_json") ) ) {
-  dir.create(here::here("data_in", "meeting_decision_json") ) }  
+if ( !dir.exists( here::here("data_out") ) ) {
+  dir.create( here::here("data_out") ) }
+if ( !dir.exists( here::here("data_in") ) ) {
+  dir.create( here::here("data_in") ) }
+if ( !dir.exists( here::here("data_in", "meeting_decision_json") ) ) {
+  dir.create( here::here("data_in", "meeting_decision_json") ) }
 
 
 ###--------------------------------------------------------------------------###
 ## GET Meetings ----------------------------------------------------------------
+
+#' Here we're getting a list of all the Plenaries during the mandate.
+
 # EXAMPLE: # https://data.europarl.europa.eu/api/v2/meetings?year=2022&format=application%2Fld%2Bjson&offset=0&limit=50
 # create parameters to loop over
 years <- 2019 : data.table::year(Sys.Date())

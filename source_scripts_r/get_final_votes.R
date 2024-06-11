@@ -27,3 +27,8 @@ votes_dt[
           x = activity_label_en, ignore.case = T, perl = T),
   is_final := 1L]
 votes_dt[is.na(is_final), is_final := 0L]
+
+# Write to disk
+final_votes <- data.table::fwrite(
+  x = unique( votes_dt[, list(rcv_id, is_final) ] ),
+  file = here::here("data_out", "votes_final.csv") )
