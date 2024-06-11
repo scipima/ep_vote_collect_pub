@@ -175,24 +175,19 @@ if ( !exists("meps_dates_ids") ) {
   meps_dates_ids <- data.table::fread(file = here::here(
     "data_out", "meps_dates_ids.csv") ) }
 
-# Create a grid with all MEPs who SHOULD have been present
+# Create a grid with all MEPs who SHOULD have been present, by date and rcv_id
 meps_rcv_grid <- merge(
   x = meps_dates_ids[, list(activity_date, pers_id)],
-  y = unique(rcv_dt[,  list(activity_date, notation_votingId) ] ) ,
-  by = "activity_date", all = TRUE, allow.cartesian = TRUE) |>
-  dplyr::left_join(y = meps_dates_ids,
-                   by = c("pers_id", "activity_date") )
-meps_rcv_grid[, activity_date := as.Date(activity_date)]
+  y = unique(rcv_dt[,  list(activity_date, notation_votingId) ] ),
+  by = "activity_date", all = TRUE, allow.cartesian = TRUE)
 # dim(meps_rcv_grid)
 # sapply(meps_rcv_grid, function(x) sum(is.na(x)))
 
 
-# data entry mistake
-rcv_dt[pers_id == 6840L, pers_id := 197443L]
-
 # merge grid with RCV data
-meps_rcv_mandate <- merge(x = meps_rcv_grid, y = rcv_dt,
-                          by = c("activity_date", "notation_votingId", "pers_id"),
+meps_rcv_mandate <- merge(x = meps_rcv_grid[, list(notation_votingId, pers_id)],
+                          y = rcv_dt,
+                          by = c("notation_votingId", "pers_id"),
                           all = TRUE) |>
   data.table::as.data.table()
 # sapply(meps_rcv_mandate, function(x) sum(is.na(x)))
@@ -205,18 +200,22 @@ if ( nrow(meps_rcv_mandate) > nrow(meps_rcv_grid) ) {
 
 ###--------------------------------------------------------------------------###
 # Final cleaning --------------------------------------------------------------#
-#'ABSENT: if both `result` and `vote_intention` are NA, then `is_absent` = 1
+
+#' ABSENT: if both `result` and `vote_intention` are NA, then `is_absent` = 1
 meps_rcv_mandate[, is_absent := data.table::fifelse(
   test = is.na(vote_intention) & is.na(result), yes = 1L, no = 0L)]
 # unique(meps_rcv_mandate$is_absent)
+
 #' True absent are absent the entire day, so take the average of `is_absent`
 meps_rcv_mandate[, is_absent_avg := mean(is_absent, na.rm = TRUE),
                  by = list(activity_date, pers_id)]
 # head(sort(unique(meps_rcv_mandate$is_absent_avg)))
+
 #' Convert `is_absent` to binary
 meps_rcv_mandate[, is_absent := data.table::fifelse(
   test = is_absent_avg == 1, yes = 1L, no = 0L) ]
 meps_rcv_mandate[, c("is_absent_avg") := NULL]
+
 # Flag for DID NOT VOTE
 meps_rcv_mandate[, is_novote := data.table::fifelse(
   test = is.na(result) & is.na(vote_intention) & is_absent == 0L, # NO VOTE but PRESENT
@@ -227,24 +226,35 @@ meps_rcv_mandate[, is_novote := data.table::fifelse(
 # table(meps_rcv_mandate$vote_intention, meps_rcv_mandate$is_absent, exclude = NULL) # check
 # table(meps_rcv_mandate$vote_intention, meps_rcv_mandate$is_novote, exclude = NULL) # check
 
+# Drop col --------------------------------------------------------------------#
+# We've kept the date col so far because we need it to create several vars above
+meps_rcv_mandate[, activity_date := NULL]
+
+
 # sort table
 data.table::setkeyv(x = meps_rcv_mandate,
-                    cols = c("activity_date", "notation_votingId", "pers_id"))
+                    cols = c("notation_votingId", "pers_id"))
 # sapply(meps_rcv_mandate, function(x) sum(is.na(x)))
 
+
 # Fill in cols ----------------------------------------------------------------#
+
 #' There are 2 MEPs who have a mistmatch between national party and political group membership.
 #' They are: https://www.europarl.europa.eu/meps/en/228604/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep; https://www.europarl.europa.eu/meps/en/226260/KAROLIN_BRAUNSBERGER-REINHOLD/history/9#detailedcardmep
 #' We fix the data gaps here.
 
-cols_tofill <- c("country", "polgroup_id", "natparty_id")
-meps_rcv_mandate <- meps_rcv_mandate |>
-  dplyr::group_by(pers_id) |>
-  tidyr::fill(tidyselect::any_of(cols_tofill),
-              .direction = "downup") |>
-  dplyr::ungroup() |>
-  data.table::as.data.table()
-data.table::setnames(meps_rcv_mandate, old = c("notation_votingId"), new = c("rcv_id"))
+# cols_tofill <- c("country", "polgroup_id", "natparty_id")
+# meps_rcv_mandate <- meps_rcv_mandate |>
+#   dplyr::group_by(pers_id) |>
+#   tidyr::fill(tidyselect::any_of(cols_tofill),
+#               .direction = "downup") |>
+#   dplyr::ungroup() |>
+#   data.table::as.data.table()
+
+# Rename cols -----------------------------------------------------------------#
+data.table::setnames(x = meps_rcv_mandate,
+                     old = c("notation_votingId"), new = c("rcv_id"),
+                     skip_absent = TRUE)
 
 # write data to disk ----------------------------------------------------------#
 data.table::fwrite(x = meps_rcv_mandate,
@@ -253,4 +263,4 @@ data.table::fwrite(x = meps_rcv_mandate,
 
 
 # remove objects --------------------------------------------------------------#
-rm( meps_dates_ids, meps_mandate, meps_rcv_grid, resp_list, url_list_tmp )
+rm( meps_dates_ids, meps_mandate, meps_rcv_grid )
