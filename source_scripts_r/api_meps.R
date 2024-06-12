@@ -54,36 +54,31 @@ rm(api_raw, api_url, api_list)
 
 # get MEPs' IDs
 mep_ids <- sort(unique(meps_mandate$pers_id))
-# create grid to loop over
-api_params <- paste0("https://data.europarl.europa.eu/api/v2/meps/",
-                     mep_ids,
-                     "?format=application%2Fld%2Bjson")
 
-# get status code from API ----------------------------------------------------#
-url_list_tmp <- lapply(
-  X = setNames(object = api_params, nm = mep_ids),
-  FUN = function(api_url) {
-    Sys.sleep(5) # call politely
-    print(api_url) # check
-    # Get data from URL
-    httr::GET(api_url) } )
-
-# get data from API -----------------------------------------------------------#
-get_mep_id <- function(links = url_list_tmp) {
-  future.apply::future_lapply(
-    X = links, FUN = function(i_url) {
-      print(i_url$url) # check
-      if ( httr::status_code(i_url) %in% c(200L) ) {
-        # Get data from .json
-        api_list <- jsonlite::fromJSON( rawToChar(i_url$content) )
-        # extract info
-        return(api_list$data) } } ) }
-
-# parallelisation -------------------------------------------------------------#
-future::plan(strategy = multisession) # Run in parallel on local computer
-meps_ids_list <- get_mep_id()
-future::plan(strategy = sequential) # revert to normal
-
+tictoc::tic()
+# loop to get all decisions
+meps_ids_list <- lapply(
+  X = setNames(object = mep_ids,
+               nm = mep_ids),
+  FUN = function(i_param) {
+    print(i_param)
+    # Create an API request
+    req <- httr2::request("https://data.europarl.europa.eu/api/v2") |>
+      httr2::req_url_path_append("meps") |>
+      httr2::req_url_path_append(i_param) |>
+      httr2::req_url_path_append("?format=application%2Fld%2Bjson")
+    # Add time-out and ignore error
+    resp <- req |>
+      httr2::req_error(is_error = ~FALSE) |>
+      httr2::req_throttle(30 / 60) |>
+      httr2::req_perform()
+    # If not an error, download and make available in ENV
+    if ( httr2::resp_status(resp) == 200L) {
+      resp_body <- resp |>
+        httr2::resp_body_json( simplifyDataFrame = TRUE )
+      return(resp_body$data)
+    } } )
+tictoc::toc()
 
 ###--------------------------------------------------------------------------###
 ### Get mandate, political group, and national party information ---------------
@@ -231,7 +226,7 @@ country_dict <- data.frame(
   country_id = seq_along(unique(meps_dates_ids$country) ) )
 
 # merge -----------------------------------------------------------------------#
-meps_dates_ids <- merge(x = meps_dates_ids, y = country_dt,
+meps_dates_ids <- merge(x = meps_dates_ids, y = country_dict,
       by = "country", all = TRUE)
 # delete col
 meps_dates_ids[, country := NULL]

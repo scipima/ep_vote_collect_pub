@@ -236,22 +236,11 @@ meps_rcv_mandate[is_novote == 1L, result := -2L]
 data.frame(
   result = -3 : 1,
   result_fct = c("absent", "no_vote", "against", "abstain", "for") ) |>
-  data.table::fwrite(file = here::here("data_out", "vote_dict.csv"))
-
-
-#------------------------------------------------------------------------------#
-# Get the last configuration of the EP
-data.table::fwrite(
-  x = unique(meps_rcv_mandate[
-    activity_date == max(activity_date, na.rm = TRUE),
-    list(pers_id, natparty_id, polgroup_id, country)]),
-  file = here::here("data_out", "meps_lastplenary.csv"), verbose = TRUE)
-
+  data.table::fwrite(file = here::here("data_out", "vote_dict.csv") )
 
 # Drop cols --------------------------------------------------------------------#
 # We've kept the date col so far because we need it to create several vars above
 meps_rcv_mandate[, c("activity_date", "is_novote", "is_absent") := NULL]
-
 
 # sort table ------------------------------------------------------------------#
 data.table::setkeyv(x = meps_rcv_mandate,

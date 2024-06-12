@@ -64,9 +64,17 @@ meps_rcv_mandate <- merge(x = meps_rcv_mandate,
 meps_rcv_mandate <- merge(x = meps_rcv_mandate,
                           y = country_dict,
                           by = c("country_id") )
-meps_rcv_mandate[, country_id := NULL]
+# meps_rcv_mandate[, country_id := NULL]
 # sapply(meps_rcv_mandate, function(x) sum(is.na(x) ) )
 
+
+#------------------------------------------------------------------------------#
+# Get the last configuration of the EP
+data.table::fwrite(
+  x = unique(meps_rcv_mandate[
+    activity_date == max(activity_date, na.rm = TRUE),
+    list(pers_id, natparty_id, polgroup_id, country) ] ),
+  file = here::here("data_out", "meps_lastplenary.csv"), verbose = TRUE)
 
 #------------------------------------------------------------------------------#
 ## Aggregate RCV results by Political Groups -----------------------------------
@@ -78,7 +86,7 @@ tally_bygroup_byrcv <- meps_rcv_mandate[
 # Votes tallies by National Parties
 tally_bygroup_byparty_byrcv <- meps_rcv_mandate[
   , list(tally = length(unique(pers_id))),
-  keyby = list(rcv_id, polgroup_id, natparty_id, result) ]
+  keyby = list(rcv_id, country_id, polgroup_id, natparty_id, result) ]
 
 # write data to disk --------------------------------------------------------#
 data.table::fwrite(x = tally_bygroup_byrcv,
@@ -93,14 +101,13 @@ data.table::fwrite(x = tally_bygroup_byparty_byrcv,
 
 # calculate majority
 majority_bygroup_byrcv <- tally_bygroup_byrcv[
-  result >= -1,
+  result >= -1, # just consider regulr votes
   list(vote_max = max(tally, na.rm = TRUE),
        votes_sum = sum(tally, na.rm = TRUE)),
   keyby = list(rcv_id, polgroup_id)]
 
 # check for ties
 majority_bygroup_byrcv[, .N, by = list(rcv_id, polgroup_id)][order(N)]
-
 
 # write data to disk --------------------------------------------------------#
 data.table::fwrite(x = majority_bygroup_byrcv,

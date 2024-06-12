@@ -74,7 +74,7 @@ resp_list <- lapply(
     # If not an error, download and make available in ENV
     if ( httr2::resp_status(resp) == 200L) {
       resp_body <- resp |>
-        httr2::resp_body_json()
+        httr2::resp_body_json( simplifyDataFrame = TRUE )
       return(resp_body$data)
     } } )
 
