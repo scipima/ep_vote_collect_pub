@@ -14,11 +14,13 @@
 library(data.table)
 
 
-if (exists("today")) {
+#------------------------------------------------------------------------------#
+## Today's Data ----------------------------------------------------------------
+if (exists("today_date")) {
   ###------------------------------------------------------------------------###
   ## Data ----------------------------------------------------------------------
   meps_rcv_today <- data.table::fread(file = here::here(
-    "data_out", paste0(today, "_meps_rcv_today.csv")))
+    "data_out", paste0(today_date, "_meps_rcv_today.csv")))
 
   ###------------------------------------------------------------------------###
   ## Aggregate RCV results by Political Groups ---------------------------------
@@ -35,15 +37,16 @@ if (exists("today")) {
 
   # write data to disk --------------------------------------------------------#
   data.table::fwrite(x = meps_rcv_today,
-                     file = here::here("data_out", paste0(today, "_meps_rcv_today.csv")))
+                     file = here::here("data_out", paste0(today_date, "_meps_rcv_today.csv")))
   data.table::fwrite(x = result_bygroup_byrcv,
-                     file = here::here("data_out", paste0(today, "_result_bygroup_byrcv.csv")))
+                     file = here::here("data_out", paste0(today_date, "_result_bygroup_byrcv.csv")))
   data.table::fwrite(x = fullresult_bygroup_byrcv,
-                     file = here::here("data_out", paste0(today, "_fullresult_bygroup_byrcv.csv")))
+                     file = here::here("data_out", paste0(today_date, "_fullresult_bygroup_byrcv.csv")))
 }
 
+
 #------------------------------------------------------------------------------#
-## Data ------------------------------------------------------------------------
+## Mandate's Data --------------------------------------------------------------
 meps_rcv_mandate <- data.table::fread(
   file = here::here("data_out", "meps_rcv_mandate.csv"),
   verbose = TRUE, key = c("rcv_id", "pers_id"))
@@ -73,7 +76,7 @@ meps_rcv_mandate <- merge(x = meps_rcv_mandate,
 data.table::fwrite(
   x = unique(meps_rcv_mandate[
     activity_date == max(activity_date, na.rm = TRUE),
-    list(pers_id, natparty_id, polgroup_id, country) ] ),
+    list(pers_id, natparty_id, polgroup_id, country_id) ] ),
   file = here::here("data_out", "meps_lastplenary.csv"), verbose = TRUE)
 
 #------------------------------------------------------------------------------#
@@ -101,7 +104,7 @@ data.table::fwrite(x = tally_bygroup_byparty_byrcv,
 
 # calculate majority
 majority_bygroup_byrcv <- tally_bygroup_byrcv[
-  result >= -1, # just consider regulr votes
+  result >= -1, # just consider regular votes
   list(vote_max = max(tally, na.rm = TRUE),
        votes_sum = sum(tally, na.rm = TRUE)),
   keyby = list(rcv_id, polgroup_id)]

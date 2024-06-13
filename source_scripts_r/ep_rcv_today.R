@@ -75,7 +75,7 @@ rm(api_params, list_tmp)
 
 # if no data is yet available today, but want to test the script, uncomment line below
 # activity_id_today = "MTG-PL-2024-03-11"
-today <- gsub(pattern = "MTG-PL-|-", replacement = "", x = activity_id_today)
+today_date <- gsub(pattern = "MTG-PL-|-", replacement = "", x = activity_id_today)
 
 
 ###--------------------------------------------------------------------------###

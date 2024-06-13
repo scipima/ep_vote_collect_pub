@@ -25,7 +25,7 @@ resp_list <- lapply(
         # Add time-out and ignore error before performing request
         resp <- req |>
             httr2::req_error(is_error = ~FALSE) |> # ignore error, we deal with it below
-            httr2::req_throttle(10 / 60) |> # call politely
+            httr2::req_throttle(30 / 60) |> # call politely
             httr2::req_perform()
         # If not an error, download and make available in ENV
         if ( httr2::resp_status(resp) == 200L) {
@@ -118,6 +118,11 @@ motivated_by <- lapply(
     data.table::rbindlist(use.names = TRUE, fill = TRUE, idcol = "plenary_id")
 data.table::fwrite(x = motivated_by,
                    file = here::here("data_out", "motivated_by.csv") )
+
+
+#------------------------------------------------------------------------------#
+# Get list of final votes
+source(file = here::here("source_scripts_r", "get_final_votes.R"))
 
 
 # remove objects --------------------------------------------------------------#
