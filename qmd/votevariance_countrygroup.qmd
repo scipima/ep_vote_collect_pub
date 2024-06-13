@@ -1,6 +1,5 @@
 ---
 title: "Explaining variance in EP RCVs: The role of EP Political Groups v Country"
-author: Marco Scipioni
 date: "`r Sys.Date()`"
 format: 
   html:
