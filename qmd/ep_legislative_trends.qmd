@@ -1,7 +1,5 @@
 ---
 title: "Legislative Trends in the EP's 9th Mandate"
-author:
-  - Marco SCIPIONI
 date: "`r Sys.Date()`"
 format: 
   html:
